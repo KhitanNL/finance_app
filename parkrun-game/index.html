@@ -351,8 +351,8 @@ const RUNNERS = [
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, st:4, love:2, jmp:3, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
   { id:'rodi', shouts:['GO RODY!', 'DIESEL!', 'SLOW AND STEADY!', 'HERE COMES RODY!'], name:'RODY', full:'Rody', emoji:'🐢', photo:'', tag:'Mystery animal. A true diesel.', known:'Slow starter, unstoppable finisher',
-    perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true },
-    pal:{ h:'#3f8a2e', s:'#7cc65a', t:'#8a5a2a', n:'#c99a4a', p:'#2f6a24', k:'#d9c27a' } },
+    perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true }, body:'turtle',
+    pal:{ S:'#5f7f2c', s:'#9cc24e', g:'#7cc65a', G:'#4f8f3a', y:'#e8d27a' } },
   { id:'draakie', shouts:['GELLETJE!!', 'DRAAKIE!', 'JONY!', 'GELLETJE!!!', 'DRAAKIE!!'], name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
     perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, st:3, love:1, jmp:4, target:1120, fx:{ fans:true },
     pal:{ h:'#ecc95a', s:'#f0c49c', t:'#2f9a3a', n:'#8fe07a', p:'#1f6a2a', k:'#f4f4f4' } },
@@ -424,6 +424,17 @@ const ARMS_C = ["....tttt....","..sstttt....","....tnnnts..","....tnnt.s..","...
 const LEGS_A = ["....GYGY....","...pp..pp...","..ss....ss..",".ss......ss.",".s........s.","kk........kk","............"];
 const LEGS_B = ["....GYGY....",".....pss....","....sss.s...","...kk.ss....","......ss....","......kkk...","............"];
 const B_STAND = STAND.slice(6);
+/* A real turtle on all fours (facing right): shell S/s, belly y, skin g/G, eye o */
+const T_TOP = ["............","............","............","............","............","............","............","............",
+  "...SSSS.....","..SsSSsS....",".SSSsSSSS.gg",".SsSSSsSS.go","SSSSSSSSSSgg","yyyyyyyyyGg."];
+const T_LEGS = {
+  stand:["..gg...gg...","..gg...gg...","..GG...GG..."],
+  a:[".gg.....gg..","gg.......gg.","g.........g."],
+  b:["..gg...gg...","..gg...gg...","..GG...GG..."],
+  c:["..gg.gg.....",".gg...gg....","gg.....gg..."],
+  jump:[".gg.....gg..","............","............"],
+};
+const turtleRows = k => T_TOP.concat(T_LEGS[k], ["............"]);
 const B_A = ARMS_A.concat(LEGS_A);
 const B_B = ARMS_B.concat(LEGS_B);
 const B_C = ARMS_C.concat(LEGS_A);
@@ -476,6 +487,10 @@ function runnerSprites(r){
   const pal = Object.assign({ o:INK }, r.pal);
   if (!pal.b) pal.b = pal.h;
   if (!r.belt){ pal.G = pal.p; pal.Y = pal.p; }
+  if (r.body === 'turtle'){
+    const tp = Object.assign({ o:INK }, r.pal);
+    return { stand:sprite(turtleRows('stand'), tp), a:sprite(turtleRows('a'), tp), b:sprite(turtleRows('b'), tp), c:sprite(turtleRows('c'), tp), jump:sprite(turtleRows('jump'), tp), wave:sprite(turtleRows('stand'), tp) };
+  }
   const hd = HEADS[r.head || 'std'];
   const mkF = body => sprite(hd.concat(body), pal);
   return { stand:mkF(B_STAND), a:mkF(B_A), b:mkF(B_B), c:mkF(B_C), jump:mkF(B_J), wave:sprite(hd.slice(0,5).concat(B_WAVE), pal) };
@@ -785,14 +800,18 @@ const MEL = [72,0,76,79, 81,0,79,76, 74,0,77,81, 79,0,77,74, 72,0,76,79, 84,83,8
 const BASS = [48,48,53,53,57,55,53,55];
 function music(){
   const a = AU.ctx; if (!a || !AU.playing) return;
-  const bpm = 128 + (race ? race.e * 9 : 0);
+  // Tempo builds with the race: calm at the start, flat out at the finish
+  const p = race ? Math.min(1, race.d / TOTAL) : 0;
+  const bpm = 96 + 84 * Math.pow(p, 1.2) + (race ? race.e * 6 : 0);
+  const key = p > 0.94 ? 2 : 0;                 // final sprint: up a key
   const step = 60 / bpm / 2;
   if (AU.nextT < a.currentTime) AU.nextT = a.currentTime + 0.05;
   while (AU.nextT < a.currentTime + 0.12){
     const i = AU.step % 32, m = MEL[i];
-    if (m) tone(mtof(m), AU.nextT, step * 0.85, 'square', 0.028);
-    if (i % 2 === 0) tone(mtof(BASS[Math.floor(i / 4) % 8]), AU.nextT, step * 1.5, 'triangle', 0.07);
-    if (i % 4 === 2) tone(4000, AU.nextT, 0.02, 'square', 0.006);
+    if (m) tone(mtof(m + key), AU.nextT, step * 0.85, 'square', 0.028);
+    if (m && p > 0.8 && i % 2 === 0) tone(mtof(m + key + 12), AU.nextT, step * 0.5, 'square', 0.012);   // last km: octave echo
+    if (i % 2 === 0) tone(mtof(BASS[Math.floor(i / 4) % 8] + key), AU.nextT, step * 1.5, 'triangle', 0.07);
+    if (i % 4 === 2 || (p > 0.5 && i % 2 === 1) || p > 0.8) tone(4000, AU.nextT, 0.02, 'square', p > 0.8 ? 0.008 : 0.006);   // more hi-hats as you go
     AU.nextT += step; AU.step++;
   }
 }
