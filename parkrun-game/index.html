@@ -397,7 +397,7 @@ const ITEM_INFO = {
 };
 ITEM_ROWS.heart = [".hh.hh.","hHhhhhh","hhhhhhh",".hhhhh.","..hhh..","...h..."];
 ITEM_PAL.heart = { h:'#ff3b6b', H:'#ffd0dc' };
-ITEM_INFO.heart = { label:'HEART BOOST!', name:'Heart', desc:'fans cheer you faster', col:'#ff6f8f' };
+ITEM_INFO.heart = { label:'HEART BOOST!', name:'Heart', desc:'thrown by female fans, only for Jordi', col:'#ff6f8f' };
 const GOOSE_ROWS = ["..ww........",".owww.......","yyww........","..ww........","..ww........","..wwwwwww...",".wwGwwwwwgg.",".wwwGGwwwg..","..wwwwwww...","....y..y....","...yy.yy...."];
 
 const IMG = {};
@@ -1095,7 +1095,7 @@ function releaseWake(){ try { wake && wake.release(); } catch(e){} wake = null; 
 
 function legend(){
   const ul = $('#legend'); ul.innerHTML = '';
-  for (const k of ['beet', 'nomio', 'gel']){
+  for (const k of ['beet', 'nomio', 'gel', 'heart']){
     const li = document.createElement('li');
     const c = mk(10, 10); c.getContext('2d').drawImage(IMG[k], 0, 0);
     li.appendChild(c);
