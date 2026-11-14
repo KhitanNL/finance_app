@@ -54,11 +54,6 @@ body{
 }
 #app[data-screen="race"] #stage{flex:1 1 auto}
 #app[data-screen="race"] #panel{flex:0 0 auto;overflow:hidden;padding-block:14px 16px}
-#app[data-screen="race"]{touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}
-.tapzone{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px;border:3px dashed var(--deck-line);text-align:center}
-.tapzone b{font-family:var(--f-display);font-weight:400;font-size:13px;color:var(--paper);letter-spacing:.06em}
-.tapzone span{font-family:var(--f-display);font-size:10px;color:var(--hivis);letter-spacing:.06em}
-#app.tapped .tapzone{border-color:var(--chrome-2)}
 section{display:flex;flex-direction:column;gap:14px}
 
 .eyebrow{font-family:var(--f-display);font-size:9px;letter-spacing:.14em;color:var(--hivis);margin:0}
@@ -158,7 +153,7 @@ p{margin:0;max-width:60ch}
 .look i{display:inline-block;width:8px;height:8px;border:1px solid var(--ink);background:var(--swatch)}
 
 /* race controls */
-.controls{display:grid;grid-template-columns:1fr;gap:14px;align-items:stretch;height:min(36vh,280px);min-height:130px}
+.controls{display:grid;grid-template-columns:1fr 1.7fr;gap:14px;align-items:stretch;height:min(36vh,280px);min-height:130px}
 .pad{
   font-family:var(--f-display);font-size:15px;letter-spacing:.06em;color:var(--paper);text-shadow:2px 2px 0 var(--ink);
   border:4px solid var(--ink);cursor:pointer;touch-action:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -212,7 +207,7 @@ p{margin:0;max-width:60ch}
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
-      <p class="muted">Mash RUN to go faster. Hold RUN to jump and grab boosts floating over the path:</p>
+      <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
       <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
       <p class="muted" id="titleBest"></p>
@@ -238,8 +233,11 @@ p{margin:0;max-width:60ch}
     </section>
 
     <section id="scr-race" hidden>
-      <div class="tapzone" aria-hidden="true"><b>TAP ANYWHERE TO RUN</b><span>HOLD TO JUMP</span></div>
-      <p class="hint">Keyboard: tap ← or → to run, hold to jump (SPACE also jumps)</p>
+      <div class="controls">
+        <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
+        <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
+      </div>
+      <p class="hint">Keyboard: ← or → to run, SPACE or ↑ to jump</p>
     </section>
 
     <section id="scr-result" hidden>
@@ -1283,30 +1281,14 @@ function bindPad(el, fn){
   el.addEventListener('contextmenu', e => e.preventDefault());
   el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); if (!e.repeat) fn(); } });
 }
-/* One button: tap = run, hold = jump. Each finger has its own hold timer, so two-thumb mashing never jumps by accident. */
-const HOLD_MS = 190;
-const holds = new Map();
-function holdStart(id){ holdEnd(id); holds.set(id, setTimeout(() => { holds.delete(id); tapJump(); }, HOLD_MS)); }
-function holdEnd(id){ const t = holds.get(id); if (t){ clearTimeout(t); holds.delete(id); } }
-// The whole screen is the button during a race (like Flappy Bird). EXIT and SOUND keep working.
-(() => {
-  const root = $('#app');
-  root.addEventListener('pointerdown', e => {
-    if (G.screen !== 'race' || e.target.closest('.hud-btn')) return;
-    e.preventDefault(); audioInit(); tapRun(); holdStart('p' + e.pointerId);
-    root.classList.add('tapped'); clearTimeout(root._t); root._t = setTimeout(() => root.classList.remove('tapped'), 70);
-  });
-  ['pointerup', 'pointercancel'].forEach(ev => root.addEventListener(ev, e => holdEnd('p' + e.pointerId)));
-  root.addEventListener('contextmenu', e => { if (G.screen === 'race') e.preventDefault(); });
-  root.addEventListener('touchstart', e => { if (G.screen === 'race' && !e.target.closest('.hud-btn')) e.preventDefault(); }, { passive:false });
-})();
-
+bindPad($('#runPad'), tapRun);
+bindPad($('#jumpPad'), tapJump);
+cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
 window.addEventListener('keydown', e => {
   if (G.screen !== 'race' || e.repeat) return;
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun(); holdStart('k' + e.key.toLowerCase()); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun(); }
   else if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
 });
-window.addEventListener('keyup', e => holdEnd('k' + String(e.key).toLowerCase()));
 document.addEventListener('gesturestart', e => e.preventDefault());
 
 $('#startBtn').addEventListener('click', () => { audioInit(); sfx('select'); show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
