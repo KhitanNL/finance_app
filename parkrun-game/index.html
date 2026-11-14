@@ -1,0 +1,1125 @@
+<title>Wolf Pack Parkrun</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#24212a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+/* Layout: the game stage sits on top like the hall's shimmering metal crown; the controls live
+   below on a dark timber deck, the same plinth the real building stands on. Single dark look by choice. */
+:root{
+  --ink:#1b1420;
+  --deck:#24212a;
+  --deck-2:#2c2832;
+  --deck-line:#36313d;
+  --paper:#f6efe1;
+  --muted:#b7aec2;
+  --hivis:#e6f02a;
+  --chrome-1:#e8c26a;
+  --chrome-2:#f26a1b;
+  --chrome-3:#d0458a;
+  --chrome-4:#7a3ea0;
+  --sky:#5cb6f4;
+  --grass:#3fae3a;
+  --chrome:linear-gradient(100deg,var(--chrome-1) 0%,var(--chrome-2) 30%,var(--chrome-3) 55%,var(--chrome-4) 70%,var(--chrome-2) 88%,var(--chrome-1) 100%);
+  --f-display:"Press Start 2P",ui-monospace,"Courier New",monospace;
+  --f-body:"VT323",ui-monospace,"Courier New",monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  margin:0;background:var(--deck);color:var(--paper);font-family:var(--f-body);font-size:20px;line-height:1.15;
+  overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;
+}
+#app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto;background:var(--deck)}
+#stage{position:relative;flex:0 0 46%;min-height:170px;background:var(--sky);overflow:hidden}
+#stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--chrome);border-top:3px solid var(--ink)}
+#game{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:crisp-edges;image-rendering:pixelated;touch-action:none}
+.hud-btn{
+  position:absolute;top:8px;z-index:2;font-family:var(--f-display);font-size:9px;color:var(--paper);
+  background:rgba(27,20,32,.72);border:2px solid var(--ink);padding:7px 8px;cursor:pointer;letter-spacing:.06em;
+}
+#muteBtn{right:max(8px,env(safe-area-inset-right,0px))}
+#exitBtn{left:max(8px,env(safe-area-inset-left,0px))}
+#app:not([data-screen="race"]) #exitBtn{display:none}
+#app[data-screen="race"] #muteBtn,#app[data-screen="race"] #exitBtn{top:auto;bottom:14px}
+.hud-btn:focus-visible,.btn:focus-visible,.card:focus-visible,.look:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
+
+#panel{
+  flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 22px;
+  background:repeating-linear-gradient(90deg,var(--deck) 0 5px,var(--deck-2) 5px 9px,var(--deck-line) 9px 10px);
+}
+#app[data-screen="race"] #stage{flex:1 1 auto}
+#app[data-screen="race"] #panel{flex:0 0 auto;overflow:hidden;padding-block:14px 16px}
+section{display:flex;flex-direction:column;gap:14px}
+
+.eyebrow{font-family:var(--f-display);font-size:9px;letter-spacing:.14em;color:var(--hivis);margin:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance}
+h1{font-size:clamp(20px,6.4vw,30px);line-height:1.35;color:var(--paper);text-shadow:3px 3px 0 var(--ink)}
+h1 .chrome{background:var(--chrome);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(3px 3px 0 var(--ink))}
+h2{font-size:14px;line-height:1.5;letter-spacing:.04em}
+p{margin:0;max-width:60ch}
+.lead{color:var(--paper);font-size:21px}
+.muted{color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:0;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:6px;font-size:19px}
+.legend canvas{width:24px;height:24px;image-rendering:pixelated}
+
+.btn{
+  font-family:var(--f-display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+  background:var(--hivis);border:3px solid var(--ink);padding:14px 16px;cursor:pointer;
+  box-shadow:inset -3px -3px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.5),0 5px 0 var(--ink);
+}
+.btn:active{transform:translateY(4px);box-shadow:inset -3px -3px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.5),0 1px 0 var(--ink)}
+.btn.alt{background:var(--paper)}
+.btn.hot{background:var(--chrome-2);color:var(--paper);text-shadow:2px 2px 0 var(--ink)}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.row .btn{flex:1 1 140px}
+.blink{animation:blink 1.1s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
+
+/* runner cards */
+#cards{position:relative;z-index:0;display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 10px 18px;margin-inline:-10px;scrollbar-width:thin}
+.card{
+  position:relative;flex:0 0 172px;scroll-snap-align:center;display:flex;flex-direction:column;
+  background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);cursor:pointer;
+  transition:transform .12s steps(3);
+}
+.card::before{content:"";position:absolute;inset:-8px;background:var(--chrome);z-index:-1;opacity:0;border:3px solid var(--ink)}
+.card[aria-pressed="true"]{transform:translateY(-6px)}
+.card[aria-pressed="true"]::before{opacity:1}
+.card-top{
+  position:relative;height:104px;display:grid;place-items:center;border-bottom:3px solid var(--ink);
+  background:linear-gradient(to bottom,var(--sky) 0 72%,var(--grass) 72% 100%);border-top:8px solid var(--shirt);
+}
+.card-top canvas{width:56px;height:80px;image-rendering:pixelated;margin-top:6px}
+.card-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px}
+.card h3{font-size:12px;line-height:1.4;min-height:17px}
+.card .tag{font-size:18px;line-height:1.05;min-height:38px;color:#4a4352}
+.name-input{
+  font-family:var(--f-display);font-size:11px;width:100%;box-sizing:border-box;padding:4px 5px;border:2px solid var(--ink);
+  background:#fffbe9;color:var(--ink);text-transform:uppercase;
+}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0;align-items:center}
+.stats dt{font-family:var(--f-display);font-size:8px}
+.stats dd{margin:0;display:flex;gap:2px}
+.pip{width:14px;height:8px;border:2px solid var(--ink);background:transparent}
+.pip.on{background:var(--chrome-2)}
+.card-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:2px}
+.pb{font-family:var(--f-display);font-size:8px;font-variant-numeric:tabular-nums}
+.look{font-family:var(--f-display);font-size:7px;padding:4px 5px;border:2px solid var(--ink);background:#fffbe9;color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:4px}
+.look i{display:inline-block;width:8px;height:8px;border:1px solid var(--ink);background:var(--swatch)}
+
+/* race controls */
+.controls{display:grid;grid-template-columns:1fr 1.7fr;gap:14px;align-items:stretch;height:min(36vh,280px);min-height:130px}
+.pad{
+  font-family:var(--f-display);font-size:15px;letter-spacing:.06em;color:var(--paper);text-shadow:2px 2px 0 var(--ink);
+  border:4px solid var(--ink);cursor:pointer;touch-action:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  box-shadow:inset -5px -5px 0 rgba(0,0,0,.28),inset 5px 5px 0 rgba(255,255,255,.35),0 6px 0 var(--ink);
+}
+.pad small{font-family:var(--f-body);font-size:18px;letter-spacing:0;text-shadow:none;color:var(--paper);opacity:.85}
+.pad.down{transform:translateY(5px);box-shadow:inset -5px -5px 0 rgba(0,0,0,.28),inset 5px 5px 0 rgba(255,255,255,.35),0 1px 0 var(--ink)}
+#jumpPad{background:#2f6fd6}
+#runPad{background:var(--chrome-2)}
+.hint{text-align:center;color:var(--muted);font-size:18px;margin-top:10px}
+
+/* results */
+.res-head{display:flex;flex-direction:column;gap:8px}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{font-family:var(--f-display);font-size:9px;padding:6px 8px;border:2px solid var(--ink);background:var(--hivis);color:var(--ink)}
+.badge.pb{background:var(--chrome);color:var(--ink)}
+.res-time{font-family:var(--f-display);font-size:clamp(36px,13vw,56px);line-height:1;color:var(--paper);text-shadow:4px 4px 0 var(--ink);font-variant-numeric:tabular-nums}
+.res-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 10px;margin:0;padding:12px;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink)}
+.res-grid div{min-width:0}
+.res-grid dt{font-size:17px;color:#5a5262}
+.res-grid dd{margin:0;font-family:var(--f-display);font-size:11px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.board{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.board li{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:6px 10px;background:rgba(0,0,0,.28);border:2px solid var(--deck-line);font-size:20px}
+.board li.me{border-color:var(--hivis);background:rgba(230,240,42,.12)}
+.board .pos{font-family:var(--f-display);font-size:10px;color:var(--hivis)}
+.board .t{font-family:var(--f-display);font-size:10px;font-variant-numeric:tabular-nums}
+#copyMsg{min-height:22px;color:var(--hivis)}
+#shareText{position:absolute;left:-9999px;top:0}
+
+@media (orientation:landscape) and (max-height:520px){
+  #app{max-width:none}
+  #stage{flex-basis:58%}
+  #app[data-screen="race"] #panel{position:absolute;left:0;right:0;bottom:0;background:none;pointer-events:none;padding-block:0 12px}
+  #app[data-screen="race"] .controls{height:96px;grid-template-columns:104px 1fr 150px;pointer-events:none}
+  #app[data-screen="race"] .controls .pad{pointer-events:auto;opacity:.92}
+  #app[data-screen="race"] #runPad{grid-column:3}
+  #app[data-screen="race"] .hint{display:none}
+  #app{position:relative}
+}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}.card{transition:none}}
+</style>
+
+<div id="app" data-screen="title">
+  <div id="stage">
+    <canvas id="game" width="320" height="192" aria-label="Zuiderpark parkrun game scene"></canvas>
+    <button class="hud-btn" id="exitBtn" type="button">EXIT</button>
+    <button class="hud-btn" id="muteBtn" type="button" aria-pressed="false">SOUND ON</button>
+  </div>
+  <div id="panel">
+    <section id="scr-title">
+      <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
+      <h1>WOLF PACK <span class="chrome">PARKRUN</span></h1>
+      <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
+      <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
+      <ul class="legend" id="legend"></ul>
+      <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
+      <p class="muted" id="titleBest"></p>
+    </section>
+
+    <section id="scr-select" hidden>
+      <div>
+        <p class="eyebrow">STEP 1 OF 2</p>
+        <h2>CHOOSE YOUR RUNNER</h2>
+      </div>
+      <div id="cards" role="listbox" aria-label="Runners"></div>
+      <p class="muted">SPD makes every tap count more. JMP jumps higher. BST makes boosts last longer.</p>
+      <div class="row">
+        <button class="btn alt" id="backBtn" type="button">BACK</button>
+        <button class="btn hot" id="goBtn" type="button">TO THE START</button>
+      </div>
+    </section>
+
+    <section id="scr-race" hidden>
+      <div class="controls">
+        <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
+        <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
+      </div>
+      <p class="hint">Keyboard: SPACE or → to run, ↑ to jump</p>
+    </section>
+
+    <section id="scr-result" hidden>
+      <div class="res-head">
+        <p class="eyebrow">PARKRUN ZUIDERPARK · 5K</p>
+        <h2 id="resName">WOLF</h2>
+        <div class="badges" id="badges"></div>
+      </div>
+      <div class="res-time" id="resTime">17:48</div>
+      <dl class="res-grid" id="resGrid"></dl>
+      <ol class="board" id="board"></ol>
+      <div class="row">
+        <button class="btn hot" id="againBtn" type="button">RUN AGAIN</button>
+        <button class="btn alt" id="changeBtn" type="button">RUNNERS</button>
+        <button class="btn alt" id="copyBtn" type="button">COPY RESULT</button>
+      </div>
+      <p id="copyMsg" aria-live="polite"></p>
+      <textarea id="shareText" aria-hidden="true" tabindex="-1"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const INK = '#1b1420';
+
+/* ---------- tuning ---------- */
+const TS = 15;          // race seconds per real second
+const PXM = 1.2;        // world pixels per metre
+const LAP = 2500, TOTAL = 5000;
+const INC = 0.25, DRAG = 0.60, CAP = 3.6, BASEV = 1.8;   // tap energy model, speed = BASEV + energy (m/s)
+const GRAV = 560, JV = 188;
+const H = 192, PATH_TOP = 150, PATH_BOT = 167, FOOT_ME = 163, FOOT_RIV = 157;
+let W = 320, CH = 192, OFF = 0;   // canvas height grows on tall screens; extra rows become sky
+
+const cv = $('#game'), ctx = cv.getContext('2d');
+
+/* ---------- storage (per viewer convenience only) ---------- */
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('wolfpack.' + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem('wolfpack.' + k, JSON.stringify(v)); } catch(e){} }
+};
+
+/* ---------- runners ---------- */
+const SKINS = ['#ffdbac','#f1c27d','#e0ac69','#c68642','#8d5524','#5c3a1e'];
+const RUNNERS = [
+  { id:'wolf',    name:'WOLF',    tag:'Sub-18 hunter. Knows every corner.', spd:4, jmp:3, bst:3, target:1068,
+    pal:{ h:'#3a2418', b:'#1b1420', t:'#f26a1b', n:'#f6efe1', p:'#1b1420', k:'#f4f4f4' } },
+  { id:'davy',    name:'DAVY',    tag:'The metronome. Never fades.',        spd:5, jmp:2, bst:3, target:1035,
+    pal:{ h:'#1b1420', b:'#e8c26a', t:'#2a2d3a', n:'#e6f02a', p:'#3a3f8f', k:'#ff5a3c' } },
+  { id:'mathijs', name:'MATHIJS', tag:'Big bounce. Loves a high gel.',      spd:3, jmp:4, bst:3, target:1080,
+    pal:{ h:'#b8862e', t:'#2f6fd6', n:'#f6efe1', p:'#1b1420', k:'#e6f02a' } },
+  { id:'jordi',   name:'JORDI',   tag:'Boost wizard. Beetroot believer.',   spd:3, jmp:2, bst:5, target:1110,
+    pal:{ h:'#2a1a12', b:'#d0458a', t:'#c8202e', n:'#f6efe1', p:'#2a2d3a', k:'#f4f4f4' } },
+  { id:'juan',    name:'JUAN',    tag:'Kick machine. Strong last 500.',     spd:4, jmp:4, bst:2, target:1050,
+    pal:{ h:'#1b1420', t:'#f2c400', n:'#2a2d3a', p:'#2a7a3a', k:'#2f6fd6' } },
+];
+const looks = store.get('looks', {});
+RUNNERS.forEach(r => { r.skin = Number.isInteger(looks[r.id]) ? looks[r.id] : 2; });
+RUNNERS[0].name = String(store.get('name', 'WOLF')).slice(0, 10) || 'WOLF';
+let pbs = store.get('pbs', {});
+
+/* ---------- pixel helpers ---------- */
+function mk(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function hash(i){
+  let x = Math.imul(i | 0, 374761393) ^ 0x9E3779B9;
+  x = Math.imul(x ^ (x >>> 15), 2246822519);
+  x = Math.imul(x ^ (x >>> 13), 3266489917);
+  x ^= x >>> 16;
+  return (x >>> 0) / 4294967296;
+}
+function sprite(rows, pal, outline = INK){
+  const h = rows.length, w = rows[0].length;
+  const c = mk(w + 2, h + 2), g = c.getContext('2d');
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && rows[y][x] !== '.';
+  if (outline){
+    g.fillStyle = outline;
+    for (let y = -1; y <= h; y++) for (let x = -1; x <= w; x++)
+      if (!on(x, y) && (on(x-1, y) || on(x+1, y) || on(x, y-1) || on(x, y+1))) g.fillRect(x + 1, y + 1, 1, 1);
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const ch = rows[y][x];
+    if (ch !== '.'){ g.fillStyle = pal[ch] || '#f0f'; g.fillRect(x + 1, y + 1, 1, 1); }
+  }
+  return c;
+}
+function pcirc(g, cx, cy, r, col){
+  g.fillStyle = col;
+  for (let y = -r; y <= r; y++){ const w = Math.floor(Math.sqrt(r*r - y*y) + 0.5); g.fillRect(cx - w, cy + y, w*2 + 1, 1); }
+}
+
+/* ---------- sprite sheets (12 x 18, facing right) ---------- */
+const HEAD = ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."];
+const STAND = HEAD.concat(["....tttt....","...tttttt...","...tnnntt...","...stnnts...","...stttts...","....pppp....","....pp.pp...","....ss.ss...","....ss.ss...","....ss.ss...","...kkk.kkk..","............"]);
+const ARMS_A = ["....tttt....","...tttttss..","..stnnnt....",".s..tnnt....","....tttt...."];
+const ARMS_B = ["....tttt....","....ttttt...","....tnnts...","....tnnts...","....tttt...."];
+const ARMS_C = ["....tttt....","..sstttt....","....tnnnts..","....tnnt.s..","....tttt...."];
+const LEGS_A = ["....pppp....","...pp..pp...","..ss....ss..",".ss......ss.",".s........s.","kk........kk","............"];
+const LEGS_B = ["....pppp....",".....pss....","....sss.s...","...kk.ss....","......ss....","......kkk...","............"];
+const FA = HEAD.concat(ARMS_A, LEGS_A);
+const FB = HEAD.concat(ARMS_B, LEGS_B);
+const FC = HEAD.concat(ARMS_C, LEGS_A);
+const FJ = HEAD.concat(["....tttt.ss.","...tttttts..","..stnnnt....",".s..tnnt....","....tttt...."],
+  ["....pppp....","...ppppss...","..ss...ss...","..s.....kk..",".kk.........","............","............"]);
+const WAVE = HEAD.slice(0,5).concat([".....ss..s..","....tttt.s..","...tttttts..","...tnnntt...","...stnnt....","...stttt...."], STAND.slice(12));
+
+const ITEM_ROWS = {
+  beet:  ["..g..g..","...gg...","..rrrr..",".rRrrrr.",".rRrrrr.",".rrrrrr.","..rrrr..","...rr..."],
+  nomio: ["...cc...","...cc...","..yyyy..","..yWyy..","..yNNy..","..yNNy..","..yyyy..","..yyyy.."],
+  gel:   [".oooooo.",".oWWWWo.",".obbbbo.",".obbbbo.",".obbbbo.",".oooooo.","..oooo..","...oo..."],
+};
+const ITEM_PAL = {
+  beet:  { r:'#a3164e', R:'#e05a96', g:'#47b84a' },
+  nomio: { c:'#2e7d32', y:'#ffb300', W:'#fff3c4', N:'#6a3c00' },
+  gel:   { o:'#ff7a1a', W:'#ffffff', b:'#2f6fd6' },
+};
+const ITEM_INFO = {
+  beet:  { label:'BEET BOOST!',  name:'Beetroot',   desc:'faster for a while', col:'#ff6fae' },
+  nomio: { label:'NOMIO SHOT!',  name:'Nomio shot', desc:'instant surge',      col:'#ffd23f' },
+  gel:   { label:'GEL POWER!',   name:'Gel',        desc:'every tap counts more', col:'#7fb2ff' },
+};
+const GOOSE_ROWS = ["..ww........",".owww.......","yyww........","..ww........","..ww........","..wwwwwww...",".wwGwwwwwgg.",".wwwGGwwwg..","..wwwwwww...","....y..y....","...yy.yy...."];
+
+const IMG = {};
+function buildStatic(){
+  for (const k in ITEM_ROWS) IMG[k] = sprite(ITEM_ROWS[k], ITEM_PAL[k]);
+  IMG.goose = sprite(GOOSE_ROWS, { w:'#f4f2ea', G:'#c9c4b8', g:'#8a8578', y:'#f08a24', o:INK });
+  IMG.trees = [0,1,2,3].map(buildTree);
+  IMG.clouds = [buildCloud(0,false), buildCloud(1,false)];
+  IMG.cloudsSun = [buildCloud(0,true), buildCloud(1,true)];
+  IMG.vol = [
+    runnerSprites({ pal:{ h:'#6b4a2a', t:'#e6f02a', n:'#f08a24', p:'#2a2d40', k:'#3a3a3a' }, skin:1 }),
+    runnerSprites({ pal:{ h:'#c9c4b8', t:'#e6f02a', n:'#f08a24', p:'#3a3f8f', k:'#f4f4f4' }, skin:3 }),
+    runnerSprites({ pal:{ h:'#2a1a12', t:'#e6f02a', n:'#f08a24', p:'#1b1420', k:'#d0458a' }, skin:0 }),
+  ];
+  BUILDING = buildBuilding();
+}
+function runnerSprites(r){
+  const pal = Object.assign({ o:INK }, r.pal, { s:SKINS[r.skin] });
+  if (!pal.b) pal.b = pal.h;
+  return { stand:sprite(STAND,pal), a:sprite(FA,pal), b:sprite(FB,pal), c:sprite(FC,pal), jump:sprite(FJ,pal), wave:sprite(WAVE,pal) };
+}
+function buildTree(v){
+  const c = mk(34, 44), g = c.getContext('2d');
+  g.fillStyle = INK; g.fillRect(13, 26, 8, 18);
+  g.fillStyle = '#7a4a2a'; g.fillRect(14, 26, 6, 18);
+  g.fillStyle = '#5a3420'; g.fillRect(14, 26, 2, 18);
+  const blobs = v === 0 ? [[17,15,10],[9,20,7],[25,20,7]] : v === 1 ? [[17,11,8],[17,22,9]] : [[17,17,12]];
+  const autumn = v === 3;
+  const dark = autumn ? '#c9631e' : '#2f8a3a', mid = autumn ? '#e8902e' : '#47a84a', lite = autumn ? '#f6c25a' : '#7fd06a';
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r + 1, INK));
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r, dark));
+  blobs.forEach(([x,y,r]) => pcirc(g, x - 2, y - 2, Math.max(2, r - 3), mid));
+  g.fillStyle = lite;
+  for (let i = 0; i < 9; i++){ const b = blobs[i % blobs.length]; g.fillRect(b[0] - 4 + ((i*5) % 7), b[1] - 5 + ((i*3) % 6), 1, 1); }
+  return c;
+}
+function buildCloud(v, sunset){
+  const c = mk(48, 22), g = c.getContext('2d');
+  const blobs = v ? [[12,13,7],[22,9,8],[33,12,7],[40,15,5]] : [[10,14,6],[20,10,8],[31,13,7]];
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r + 1, sunset ? '#8a5a7a' : '#2e6fa8'));
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r, sunset ? '#ffc7a0' : '#ffffff'));
+  g.fillStyle = sunset ? '#e89a9a' : '#cfe8fb';
+  g.fillRect(4, 17, 42, 2);
+  return c;
+}
+
+/* ---------- the hall: iridescent metal crown on a dark timber drum ---------- */
+const BW = 188, BH = 74, BASE_H = 18;
+let BUILDING = null;
+function buildBuilding(){
+  const c = mk(BW, BH), g = c.getContext('2d');
+  const bottom = BH;
+  // timber drum
+  for (let x = 14; x < BW - 22; x++){
+    g.fillStyle = x % 4 === 0 ? '#3d3842' : x % 4 === 2 ? '#2a262e' : '#322d37';
+    g.fillRect(x, bottom - BASE_H, 1, BASE_H);
+  }
+  g.fillStyle = INK; g.fillRect(13, bottom - BASE_H, 1, BASE_H); g.fillRect(BW - 22, bottom - BASE_H, 1, BASE_H);
+  g.fillStyle = '#141218'; g.fillRect(14, bottom - BASE_H, BW - 36, 3);
+  [34, 74, 122, 146].forEach(dx => {
+    g.fillStyle = '#16141a'; g.fillRect(dx, bottom - 12, 9, 12);
+    g.fillStyle = '#26232b'; g.fillRect(dx + 4, bottom - 12, 1, 12);
+    g.fillStyle = '#e0302a'; g.fillRect(dx + 3, bottom - 15, 3, 2);
+  });
+  g.fillStyle = '#ffe9a0'; g.fillRect(52, bottom - 13, 1, 1); g.fillRect(100, bottom - 13, 1, 1);
+  // metal crown
+  const P  = ['#e3cf8c','#e8b04a','#f0942e','#f26a1b','#e2493a','#d0458a','#9a3fa6','#e2493a','#f26a1b','#f59a2e'];
+  const PD = ['#b89e5a','#b8822a','#c06c1c','#bf4c10','#a8302a','#9a2d68','#6c2a7a','#a8302a','#bf4c10','#c26f1c'];
+  const edges = [];
+  for (let i = 0; i < BW; i++){
+    const t = i / (BW - 1);
+    let top = bottom - BASE_H - 24 - Math.round(18*t + 6*Math.sin(Math.PI*t));
+    if (t < 0.1) top += Math.round((0.1 - t) * 130);
+    let bot = bottom - BASE_H + 3 - Math.round(5*t);
+    if (t > 0.95) bot -= Math.round((t - 0.95) * 260);
+    if (bot <= top + 1) bot = top + 2;
+    edges.push([top, bot]);
+    const panel = Math.floor(i / 3);
+    const hp = hash(panel * 7 + 3);
+    for (let y = top; y < bot; y++){
+      const seg = Math.floor((y + hp * 23) / (7 + Math.floor(hp * 7)));
+      const n = hash(panel * 131 + seg * 17);
+      let v = t * 0.82 + (n - 0.5) * 0.34 + (y - top) / (bot - top + 1) * 0.12;
+      let idx = Math.max(0, Math.min(P.length - 1, Math.floor(v * P.length)));
+      let col = (i % 3 === 2) ? PD[idx] : P[idx];
+      // reflected trees on the lower left of the shell
+      const reflect = t < 0.5 && y > bot - 6 - Math.floor(9 * hash(panel * 3 + 1)) * (1 - t * 1.6);
+      if (reflect && hash(panel * 11 + y) > 0.2) col = (i % 3 === 2) ? '#3a3a1e' : '#56502a';
+      g.fillStyle = col; g.fillRect(i, y, 1, 1);
+    }
+    g.fillStyle = '#fff1bf'; g.fillRect(i, top, 1, 1);
+    g.fillStyle = INK; g.fillRect(i, top - 1, 1, 1); g.fillRect(i, bot, 1, 1);
+  }
+  // tiny roof bumps like the real crown rim
+  g.fillStyle = INK;
+  for (let i = 30; i < BW - 10; i += 28) g.fillRect(i, edges[i][0] - 2, 1, 1);
+  return { img:c, edges };
+}
+function drawBuilding(x, time, sunset){
+  if (x > W + 4 || x + BW < -4) return;
+  const by = PATH_TOP - 2 - BH;
+  ctx.drawImage(BUILDING.img, x, by);
+  // travelling sheen across the panels
+  const e = BUILDING.edges;
+  ctx.fillStyle = sunset ? 'rgba(255,214,120,.85)' : 'rgba(255,248,214,.8)';
+  for (let i = 0; i < BW; i++){
+    const [top, bot] = e[i];
+    const yy = top + ((i * 0.55 + time * 32) % 110) - 40;
+    if (yy >= top + 1 && yy < bot - 1) ctx.fillRect(x + i, by + yy, 1, Math.min(3, bot - 1 - yy));
+    const y2 = top + ((i * 0.55 + time * 32 + 55) % 110) - 40;
+    if (sunset && y2 >= top + 1 && y2 < bot - 1) ctx.fillRect(x + i, by + y2, 1, 1);
+  }
+}
+
+/* ---------- scenery ---------- */
+const SKY_DAY = ['#3f9ff0','#4aa8f2','#57b1f4','#66baf6','#76c3f7','#88ccf8','#9cd6f8'];
+const SKY_SUN = ['#5d6ea8','#7a7fb4','#9a8cba','#c497b4','#e8a3a0','#f5b488','#f8c675'];
+const BLD_X = [0, LAP * PXM, TOTAL * PXM];
+const KM = [1000, 2000, 3000, 4000];
+
+function drawHills(camX, f, baseY, amp, col, edge, dot, seed){
+  const off = camX * f;
+  for (let x = 0; x < W; x++){
+    const wx = Math.floor(x + off);
+    const s = Math.sin(wx * 0.012 + seed) * 0.55 + Math.sin(wx * 0.029 + seed * 2.1) * 0.3 + Math.sin(wx * 0.071 + seed) * 0.15;
+    const h = Math.round(amp * (0.6 + 0.4 * s));
+    const y = baseY - h;
+    ctx.fillStyle = col; ctx.fillRect(x, y, 1, baseY - y + 2);
+    ctx.fillStyle = edge; ctx.fillRect(x, y, 1, 1);
+    if (hash(wx * 3 + seed * 100) < 0.05){ ctx.fillStyle = dot; ctx.fillRect(x, y + 4 + Math.floor(hash(wx) * 10), 1, 2); }
+  }
+}
+function drawTower(x, base){
+  ctx.fillStyle = INK; ctx.fillRect(x - 1, base - 62, 30, 62);
+  ctx.fillStyle = '#9aa3b2'; ctx.fillRect(x, base - 61, 28, 61);
+  ctx.fillStyle = '#7d8696'; ctx.fillRect(x + 20, base - 61, 8, 61);
+  ctx.fillStyle = '#5a6272';
+  for (let y = base - 57; y < base - 4; y += 4) for (let i = 2; i < 26; i += 4) ctx.fillRect(x + i, y, 2, 2);
+}
+function drawSignpost(x){
+  const base = PATH_TOP - 1;
+  ctx.fillStyle = INK; ctx.fillRect(x - 1, base - 46, 4, 46);
+  for (let y = 0; y < 44; y++){ ctx.fillStyle = y > 34 ? '#141218' : (Math.floor(y / 2) % 2 ? '#2f5fc0' : '#f4f4f4'); ctx.fillRect(x, base - 45 + y, 2, 1); }
+  [[-22,-46],[-18,-40],[-20,-34]].forEach(([dx,dy], i) => {
+    ctx.fillStyle = INK; ctx.fillRect(x + dx - 1, base + dy - 1, 22, 6);
+    ctx.fillStyle = '#f4f4f4'; ctx.fillRect(x + dx, base + dy, 20, 4);
+    ctx.fillStyle = '#c8202e'; ctx.fillRect(x + dx, base + dy, 3, 4);
+    ctx.fillStyle = '#8a8a8a'; ctx.fillRect(x + dx + 5, base + dy + 1, 11 - i * 2, 1); ctx.fillRect(x + dx + 5, base + dy + 3, 8, 1);
+  });
+  ctx.fillStyle = INK; ctx.fillRect(x - 6, base - 29, 14, 12);
+  ctx.fillStyle = '#2e7d32'; ctx.fillRect(x - 5, base - 28, 12, 10);
+  ctx.fillStyle = '#f4f4f4'; ctx.fillRect(x - 3, base - 26, 8, 6);
+  ctx.fillStyle = '#2e7d32'; ctx.fillRect(x, base - 25, 2, 4);
+}
+function drawLamp(x){
+  const base = PATH_TOP - 1;
+  ctx.fillStyle = INK; ctx.fillRect(x - 1, base - 34, 3, 34); ctx.fillRect(x - 3, base - 37, 7, 4);
+  ctx.fillStyle = '#9aa0a8'; ctx.fillRect(x, base - 33, 1, 33);
+  ctx.fillStyle = '#fff3c4'; ctx.fillRect(x - 2, base - 36, 5, 2);
+}
+function drawFlag(x, text, col){
+  const base = PATH_TOP - 1;
+  const w = text.length * 8 + 8;
+  ctx.fillStyle = INK; ctx.fillRect(x - 1, base - 58, 3, 58); ctx.fillRect(x + 1, base - 58, w + 2, 14);
+  ctx.fillStyle = '#dcdcdc'; ctx.fillRect(x, base - 57, 1, 57);
+  ctx.fillStyle = col; ctx.fillRect(x + 2, base - 57, w, 12);
+  txt(text, x + 6, base - 55, '#f6efe1', 'left', 8, INK);
+}
+function drawBunting(x0, x1, time){
+  const y = PATH_TOP - 16;
+  ctx.fillStyle = INK; ctx.fillRect(x0, y, x1 - x0, 1);
+  for (let x = x0, i = 0; x < x1 - 4; x += 7, i++){
+    ctx.fillStyle = i % 2 ? '#f08a24' : '#e6f02a';
+    const sw = Math.round(Math.sin(time * 4 + i) * 0.6);
+    ctx.fillRect(x + 1, y + 1, 5, 1); ctx.fillRect(x + 2 + sw, y + 2, 3, 1); ctx.fillRect(x + 3 + sw, y + 3, 1, 1);
+  }
+  ctx.fillStyle = INK; ctx.fillRect(x0 - 1, y, 2, PATH_TOP - y); ctx.fillRect(x1 - 1, y, 2, PATH_TOP - y);
+}
+function drawKmBoard(x, label){
+  const base = PATH_TOP - 1;
+  ctx.fillStyle = INK; ctx.fillRect(x - 1, base - 22, 3, 22); ctx.fillRect(x - 12, base - 32, 26, 13);
+  ctx.fillStyle = '#f6efe1'; ctx.fillRect(x - 11, base - 31, 24, 11);
+  txt(label, x + 1, base - 29, '#2a2d6e', 'center', 8, null);
+}
+function drawCheck(x){
+  for (let y = PATH_TOP + 1; y < PATH_BOT - 1; y += 2){
+    ctx.fillStyle = (y >> 1) % 2 ? '#f4f4f4' : INK; ctx.fillRect(x, y, 2, 2);
+    ctx.fillStyle = (y >> 1) % 2 ? INK : '#f4f4f4'; ctx.fillRect(x + 2, y, 2, 2);
+  }
+}
+
+function drawScene(camX, time, sunset){
+  const sky = sunset ? SKY_SUN : SKY_DAY;
+  const bandH = Math.ceil(136 / sky.length);
+  sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, i * bandH, W, bandH + 1); });
+  if (sunset){ ctx.fillStyle = '#ffe08a'; pcirc(ctx, Math.round(W * 0.82), 112, 9, '#ffd36a'); }
+  // clouds
+  const cw = 150, coff = camX * 0.08 + time * 3;
+  const clouds = sunset ? IMG.cloudsSun : IMG.clouds;
+  for (let k = Math.floor(coff / cw) - 1; k <= Math.floor((coff + W) / cw) + 1; k++){
+    if (hash(k * 7 + 1) < 0.2) continue;
+    ctx.drawImage(clouds[k & 1], Math.round(k * cw - coff + hash(k * 3) * 70), Math.round(10 + hash(k * 5) * 46));
+  }
+  // flats on the horizon
+  const tw = 360, toff = camX * 0.16;
+  for (let k = Math.floor(toff / tw) - 1; k <= Math.floor((toff + W) / tw) + 1; k++){
+    if (hash(k * 11 + 5) < 0.45) continue;
+    drawTower(Math.round(k * tw - toff + hash(k * 13) * 200), 126);
+  }
+  drawHills(camX, 0.22, 128, 30, sunset ? '#5a8a6a' : '#7ccf74', sunset ? '#2f4a3a' : '#2f7a36', sunset ? '#4a7a5a' : '#5fb25a', 1.3);
+  drawHills(camX, 0.36, 136, 22, sunset ? '#3f7a52' : '#55b64e', sunset ? '#24402e' : '#256a2e', sunset ? '#356a46' : '#3f9a3e', 4.1);
+  // tree line
+  const trw = 26, troff = camX * 0.6;
+  for (let k = Math.floor(troff / trw) - 2; k <= Math.floor((troff + W) / trw) + 1; k++){
+    const hh = hash(k * 19 + 2);
+    if (hh < 0.35) continue;
+    const v = hh > 0.9 ? 3 : Math.floor(hash(k * 23) * 3);
+    ctx.drawImage(IMG.trees[v], Math.round(k * trw - troff + hash(k * 29) * 10), 140 - 44 + Math.floor(hash(k * 31) * 4));
+  }
+  // back lawn
+  ctx.fillStyle = sunset ? '#3d7f3a' : '#4cb846'; ctx.fillRect(0, 134, W, PATH_TOP - 134);
+  ctx.fillStyle = sunset ? '#2a5a2e' : '#2f8a36'; ctx.fillRect(0, 134, W, 1);
+  // props that live in the world (1:1 with the path)
+  for (let k = Math.floor((camX - 200) / 150); k <= Math.floor((camX + W + 200) / 150); k++){
+    const lx = k * 150 + 60;
+    if (BLD_X.some(b => Math.abs(lx - b) < 130)) continue;
+    if (hash(k * 41) < 0.55) drawLamp(Math.round(lx - camX));
+  }
+  BLD_X.forEach((bx, i) => {
+    drawBuilding(Math.round(bx - BW / 2 - camX), time, sunset);
+    const sx = Math.round(bx - camX);
+    if (sx > -140 && sx < W + 140){
+      drawSignpost(sx + 118);
+      if (i === 1) drawFlag(sx + 10, 'LAP 2', '#2f6fd6');
+      else drawFlag(sx + 10, i === 0 && !(race && race.d > 600) ? 'START' : 'FINISH', '#2a2d6e');
+      drawBunting(sx - 80, sx - 14, time);
+    }
+  });
+  KM.forEach(m => { const x = Math.round(m * PXM - camX); if (x > -20 && x < W + 20) drawKmBoard(x, (m / 1000) + 'K'); });
+  // path
+  ctx.fillStyle = '#4a464f'; ctx.fillRect(0, PATH_TOP, W, PATH_BOT - PATH_TOP);
+  ctx.fillStyle = '#6c6872'; ctx.fillRect(0, PATH_TOP, W, 1);
+  ctx.fillStyle = '#2e2b33'; ctx.fillRect(0, PATH_BOT - 1, W, 1);
+  const s0 = Math.floor(camX / 3);
+  for (let k = s0; k < s0 + W / 3 + 2; k++){
+    const h = hash(k * 13 + 7);
+    if (h < 0.55){
+      ctx.fillStyle = h < 0.2 ? '#5f5b65' : '#3a3740';
+      ctx.fillRect(Math.round(k * 3 - camX), PATH_TOP + 2 + Math.floor(hash(k * 17) * (PATH_BOT - PATH_TOP - 4)), 1, 1);
+    }
+  }
+  BLD_X.forEach(bx => { const x = Math.round(bx - camX); if (x > -8 && x < W + 8) drawCheck(x - 2); });
+  // front lawn with mowing stripes and fallen leaves
+  ctx.fillStyle = sunset ? '#245a2a' : '#2f8a36'; ctx.fillRect(0, PATH_BOT, W, 2);
+  for (let x = 0; x < W; x += 1){
+    const wx = Math.floor(x + camX);
+    ctx.fillStyle = (Math.floor(wx / 28) % 2) ? (sunset ? '#36763a' : '#43b33e') : (sunset ? '#3d7f3a' : '#4cbb46');
+    ctx.fillRect(x, PATH_BOT + 2, 1, H - PATH_BOT - 2);
+  }
+  const l0 = Math.floor(camX / 5);
+  for (let k = l0; k < l0 + W / 5 + 2; k++){
+    const h = hash(k * 37 + 11);
+    const x = Math.round(k * 5 - camX), y = PATH_BOT + 4 + Math.floor(hash(k * 43) * (H - PATH_BOT - 6));
+    if (h < 0.14){ ctx.fillStyle = h < 0.06 ? '#e8902e' : '#f2c14e'; ctx.fillRect(x, y, 2, 1); }
+    else if (h < 0.3){ ctx.fillStyle = sunset ? '#245a2a' : '#2f8a36'; ctx.fillRect(x, y, 1, 2); ctx.fillRect(x + 2, y, 1, 2); ctx.fillRect(x + 1, y + 1, 1, 1); }
+  }
+  if (sunset){ ctx.fillStyle = 'rgba(110,40,90,.18)'; ctx.fillRect(0, 96, W, H - 96); }
+}
+
+/* ---------- text ---------- */
+function txt(s, x, y, col = '#fff', align = 'left', size = 8, shadow = INK){
+  ctx.font = size + 'px "Press Start 2P", ui-monospace, monospace';
+  ctx.textAlign = align; ctx.textBaseline = 'top';
+  if (shadow){ ctx.fillStyle = shadow; ctx.fillText(s, x + 1, y + 1); }
+  ctx.fillStyle = col; ctx.fillText(s, x, y);
+}
+const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const fmtPace = v => v > 0.3 ? fmt(1000 / v) : '--:--';
+
+/* ---------- audio: tiny chiptune ---------- */
+const AU = { ctx:null, muted:store.get('muted', false), nextT:0, step:0, playing:false };
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function audioInit(){
+  if (!AU.ctx){ try { AU.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ AU.ctx = null; } }
+  if (AU.ctx && AU.ctx.state === 'suspended') AU.ctx.resume();
+}
+function tone(f, t0, dur, type = 'square', vol = 0.05, f2 = null){
+  const a = AU.ctx; if (!a || AU.muted) return;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function sfx(n){
+  if (!AU.ctx) return; const t = AU.ctx.currentTime;
+  if (n === 'tap') tone(1100, t, 0.025, 'square', 0.015);
+  else if (n === 'jump') tone(320, t, 0.16, 'square', 0.05, 900);
+  else if (n === 'item'){ [72,76,79,84].forEach((m,i) => tone(mtof(m), t + i * 0.05, 0.08, 'square', 0.05)); }
+  else if (n === 'hit'){ tone(220, t, 0.25, 'sawtooth', 0.05, 70); }
+  else if (n === 'beep') tone(660, t, 0.12, 'square', 0.06);
+  else if (n === 'go') tone(1320, t, 0.35, 'square', 0.06);
+  else if (n === 'lap'){ [67,72,76].forEach((m,i) => tone(mtof(m), t + i * 0.08, 0.12, 'square', 0.05)); }
+  else if (n === 'finish'){ [72,76,79,84,79,84,88].forEach((m,i) => tone(mtof(m), t + i * 0.11, i === 6 ? 0.5 : 0.12, 'square', 0.06)); }
+  else if (n === 'select') tone(880, t, 0.06, 'square', 0.04, 1320);
+}
+// original 4-bar loop in C, tempo follows your speed
+const MEL = [72,0,76,79, 81,0,79,76, 74,0,77,81, 79,0,77,74, 72,0,76,79, 84,83,81,79, 77,0,74,76, 72,0,67,0];
+const BASS = [48,48,53,53,57,55,53,55];
+function music(){
+  const a = AU.ctx; if (!a || !AU.playing) return;
+  const bpm = 128 + (race ? race.e * 9 : 0);
+  const step = 60 / bpm / 2;
+  if (AU.nextT < a.currentTime) AU.nextT = a.currentTime + 0.05;
+  while (AU.nextT < a.currentTime + 0.12){
+    const i = AU.step % 32, m = MEL[i];
+    if (m) tone(mtof(m), AU.nextT, step * 0.85, 'square', 0.028);
+    if (i % 2 === 0) tone(mtof(BASS[Math.floor(i / 4) % 8]), AU.nextT, step * 1.5, 'triangle', 0.07);
+    if (i % 4 === 2) tone(4000, AU.nextT, 0.02, 'square', 0.006);
+    AU.nextT += step; AU.step++;
+  }
+}
+function setMuteLabel(){ const b = $('#muteBtn'); b.textContent = AU.muted ? 'SOUND OFF' : 'SOUND ON'; b.setAttribute('aria-pressed', String(AU.muted)); }
+
+/* ---------- game state ---------- */
+const G = { screen:'title', sel:store.get('sel', 0), time:0 };
+if (!(G.sel >= 0 && G.sel < RUNNERS.length)) G.sel = 0;
+let SPR = [];
+function rebuildRunnerSprites(){ SPR = RUNNERS.map(runnerSprites); }
+let race = null;
+
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const nearBuilding = d => [0, LAP, TOTAL].some(b => Math.abs(d - b) < 120);
+
+function newRace(){
+  const me = RUNNERS[G.sel];
+  const rng = mulberry((Date.now() & 0xffffffff) ^ 0x5eed);
+  const items = [], obstacles = [];
+  for (let d = 180; d < TOTAL - 120; d += 170 + rng() * 120){
+    if (nearBuilding(d)) continue;
+    const r = rng();
+    items.push({ d, type: r < 0.4 ? 'beet' : r < 0.72 ? 'gel' : 'nomio', h: 25 + Math.floor(rng() * 14), got:false, ph:rng() * 6 });
+  }
+  for (let d = 330; d < TOTAL - 160; d += 250 + rng() * 210){
+    if (nearBuilding(d) || items.some(i => Math.abs(i.d - d) < 40)) continue;
+    obstacles.push({ d, type: rng() < 0.5 ? 'puddle' : 'goose', hit:false });
+  }
+  const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel).map(i => ({
+    i, T: RUNNERS[i].target + (rng() - 0.5) * 60, ph: rng() * 6, d: 0, lane: 0, anim: rng() * 4
+  }));
+  race = {
+    me, d:0, vt:0, e:0, v:0, y:0, vy:0, air:false, taps:0, tapTimes:[], lastTap:0, maxCad:0,
+    boost:{ beet:0, nomio:0, gel:0 }, slow:0, stumble:0, msgs:[], parts:[], lap:1, finished:false, finishVT:0, after:0,
+    got:0, countdown:3.2, lastCount:4, anim:0, items, obstacles, rivals, split:0
+  };
+}
+
+function boostMult(){ return 1 + 0.15 * (race.me.bst - 3); }
+function msg(s, col){ race.msgs.push({ s, col, t:0 }); }
+function burst(x, y, col, n, spread = 40){
+  for (let i = 0; i < n; i++) race.parts.push({ x, y, vx:(Math.random() - 0.5) * spread, vy:-Math.random() * spread, life:0.5 + Math.random() * 0.4, col });
+}
+
+function tapRun(){
+  if (G.screen !== 'race' || !race || race.countdown > 0 || race.finished) return;
+  const now = performance.now();
+  if (now - race.lastTap < 45) return;
+  race.lastTap = now;
+  const cap = CAP + (race.boost.gel > 0 ? 0.5 : 0);
+  const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1);
+  race.e = Math.min(cap, race.e + inc);
+  race.taps++; race.tapTimes.push(now);
+  sfx('tap');
+}
+function tapJump(){
+  if (G.screen !== 'race' || !race || race.countdown > 0 || race.air || race.finished) return;
+  race.air = true; race.vy = -JV * (1 + 0.05 * (race.me.jmp - 3));
+  sfx('jump');
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  G.time += dt;
+  if (G.screen !== 'race' || !race) return;
+  const r = race;
+  if (r.countdown > 0){
+    r.countdown -= dt;
+    const c = Math.ceil(r.countdown);
+    if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
+    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); }
+    return;
+  }
+  for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
+  r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
+  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1);
+  r.e -= r.e * drag * dt;
+  if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
+  let mult = 1;
+  if (r.boost.beet > 0) mult *= 1.08;
+  if (r.boost.nomio > 0) mult *= 1.15;
+  if (r.slow > 0) mult *= 0.55;
+  r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
+  const prevD = r.d;
+  r.d += r.v * TS * dt;
+  if (!r.finished) r.vt += TS * dt;
+  r.anim += dt * (1.5 + r.v * 2.3);
+  if (Math.floor(r.anim) !== Math.floor(r.anim - dt * (1.5 + r.v * 2.3)) && !r.air && r.v > 2 && Math.floor(r.anim) % 2 === 0)
+    burst(r.d * PXM - 4, FOOT_ME - 1, 'rgba(210,200,190,.8)', 1, 18);
+  // jump
+  if (r.air){ r.vy += GRAV * dt; r.y += r.vy * dt; if (r.y >= 0){ r.y = 0; r.vy = 0; r.air = false; } }
+  // cadence
+  const now = performance.now();
+  while (r.tapTimes.length && now - r.tapTimes[0] > 1000) r.tapTimes.shift();
+  r.maxCad = Math.max(r.maxCad, r.tapTimes.length);
+  // items
+  const foot = -r.y;
+  for (const it of r.items){
+    if (it.got || Math.abs(it.d - r.d) * PXM > 8) continue;
+    if (it.h + 4 > foot && it.h - 4 < foot + 19){
+      it.got = true; r.got++;
+      const bm = boostMult();
+      if (it.type === 'beet') r.boost.beet = 6 * bm;
+      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + 0.5, r.e + 0.8); }
+      if (it.type === 'gel') r.boost.gel = 7 * bm;
+      msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
+      burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
+      sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
+    }
+  }
+  for (const o of r.obstacles){
+    if (o.hit || Math.abs(o.d - r.d) * PXM > 6) continue;
+    if (foot < (o.type === 'goose' ? 10 : 3)){
+      o.hit = true;
+      if (o.type === 'puddle'){ r.slow = 1.0; r.e *= 0.65; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
+      else { r.slow = 1.2; r.e *= 0.5; r.stumble = 0.6; msg('HONK! GOOSE!', '#f4f2ea'); }
+      sfx('hit'); try { navigator.vibrate && navigator.vibrate([30, 30, 30]); } catch(e){}
+    }
+  }
+  // laps and finish
+  if (r.lap === 1 && r.d >= LAP){ r.lap = 2; r.split = r.vt; msg('LAP 2! ' + fmt(r.vt), '#e6f02a'); sfx('lap'); }
+  if (!r.finished && r.d >= TOTAL){
+    r.finished = true;
+    r.finishVT = r.vt - (r.d - TOTAL) / Math.max(0.1, r.v);
+    msg('FINISH!', '#e6f02a'); sfx('finish'); AU.playing = false;
+    burst(TOTAL * PXM, FOOT_ME - 30, '#e6f02a', 24, 90); burst(TOTAL * PXM, FOOT_ME - 30, '#f26a1b', 24, 90);
+  }
+  if (r.finished){ r.after += dt; if (r.after > 2.6) showResults(); }
+  // rivals
+  for (const v of r.rivals){
+    const vt = r.finished ? r.finishVT + r.after * TS : r.vt;
+    const f = Math.min(1, vt / v.T);
+    v.d = vt >= v.T ? TOTAL + (vt - v.T) * 1.2 : TOTAL * f + 22 * Math.sin(Math.PI * f) * Math.sin(vt / 70 + v.ph);
+    v.anim += dt * (1.5 + (TOTAL / v.T) * 2.3) * (vt >= v.T ? 0.4 : 1);
+  }
+  // fx
+  for (const p of r.parts){ p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 120 * dt; }
+  r.parts = r.parts.filter(p => p.life > 0);
+  for (const m of r.msgs) m.t += dt;
+  r.msgs = r.msgs.filter(m => m.t < 1.4);
+}
+
+/* ---------- render ---------- */
+const FRAMES = ['a','b','c','b'];
+function drawRunner(set, frame, x, foot){ ctx.drawImage(set[frame], Math.round(x - 7), Math.round(foot - 18)); }
+function shadow(x, foot, w){ ctx.fillStyle = 'rgba(20,14,26,.35)'; ctx.fillRect(Math.round(x - w / 2), foot, w, 2); }
+
+function render(){
+  ctx.imageSmoothingEnabled = false;
+  const t = G.time;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (OFF > 0){ ctx.fillStyle = G.screen === 'title' ? SKY_SUN[0] : SKY_DAY[0]; ctx.fillRect(0, 0, W, OFF + 2); }
+  ctx.setTransform(1, 0, 0, 1, 0, OFF);
+  if (G.screen === 'title'){
+    const camX = -W / 2 + Math.sin(t * 0.25) * 24 + 10;
+    drawScene(camX, t, true);
+    RUNNERS.forEach((r, i) => {
+      const x = -58 + i * 26 - camX;
+      const f = FRAMES[Math.floor(t * 5 + i * 1.3) % 4];
+      shadow(x, FOOT_ME, 10);
+      drawRunner(SPR[i], f, x, FOOT_ME - (f === 'b' ? 1 : 0));
+    });
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    txt('ZUIDERPARK', W / 2, 18 + Math.round(OFF * 0.4), '#f6efe1', 'center', 16);
+    txt('PARKRUN 5K', W / 2, 40 + Math.round(OFF * 0.4), '#e6f02a', 'center', 8);
+    return;
+  }
+  if (G.screen === 'select'){
+    const camX = -W / 2 + 20;
+    drawScene(camX, t, false);
+    RUNNERS.forEach((r, i) => {
+      if (i === G.sel) return;
+      const k = i < G.sel ? i : i - 1;
+      const x = -66 + k * 22 - camX;
+      drawRunner(SPR[i], Math.floor(t * 2 + i) % 3 === 0 ? 'wave' : 'stand', x, FOOT_RIV);
+    });
+    const x = 34 - camX, f = FRAMES[Math.floor(t * 7) % 4];
+    shadow(x, FOOT_ME, 10);
+    drawRunner(SPR[G.sel], f, x, FOOT_ME - (f === 'b' ? 1 : 0));
+    txt(RUNNERS[G.sel].name, x, FOOT_ME - 34 + Math.round(Math.sin(t * 5)), '#e6f02a', 'center', 8);
+    txt('▼', x, FOOT_ME - 24, '#e6f02a', 'center', 8);
+    return;
+  }
+  if (!race) return;
+  const r = race, PX = Math.round(W * 0.3);
+  const camX = r.d * PXM - PX;
+  drawScene(camX, t, false);
+  // volunteers in hi-vis at the hall
+  BLD_X.forEach((bx, bi) => {
+    [[-34, 0], [44, 1], [70, 2]].forEach(([dx, vi], j) => {
+      const x = bx + dx - camX; if (x < -10 || x > W + 10) return;
+      drawRunner(IMG.vol[vi], Math.floor(t * 3 + j + bi) % 2 ? 'wave' : 'stand', x, PATH_TOP + 1);
+    });
+  });
+  // obstacles
+  for (const o of r.obstacles){
+    const x = Math.round(o.d * PXM - camX); if (x < -20 || x > W + 20) continue;
+    if (o.type === 'puddle'){
+      ctx.fillStyle = INK; ctx.fillRect(x - 8, FOOT_ME - 2, 16, 4);
+      ctx.fillStyle = '#5aa8e0'; ctx.fillRect(x - 7, FOOT_ME - 1, 14, 2);
+      ctx.fillStyle = '#bfe6ff'; ctx.fillRect(x - 4, FOOT_ME - 1, 4, 1);
+    } else {
+      const bob = Math.floor(t * 6 + o.d) % 2;
+      ctx.drawImage(IMG.goose, x - 7, FOOT_ME - 12 - bob);
+    }
+  }
+  // items
+  for (const it of r.items){
+    if (it.got) continue;
+    const x = Math.round(it.d * PXM - camX); if (x < -12 || x > W + 12) continue;
+    const y = Math.round(FOOT_ME - it.h + Math.sin(t * 4 + it.ph) * 1.5);
+    ctx.drawImage(IMG[it.type], x - 5, y - 5);
+    if (Math.floor(t * 6 + it.ph) % 3 === 0){ ctx.fillStyle = '#fffbe0'; ctx.fillRect(x + 5, y - 6, 1, 1); ctx.fillRect(x - 6, y + 3, 1, 1); }
+  }
+  // rivals (back lane)
+  let lastLabel = -999;
+  for (const v of r.rivals.slice().sort((a, b) => a.d - b.d)){
+    const x = PX + (v.d - r.d) * PXM;
+    if (x < -14 || x > W + 14) continue;
+    const done = v.d >= TOTAL + 20;
+    drawRunner(SPR[v.i], done ? 'wave' : FRAMES[Math.floor(v.anim) % 4], x, FOOT_RIV);
+    if (x - lastLabel > 36){ txt(RUNNERS[v.i].name.slice(0, 4), Math.round(x), FOOT_RIV - 30, '#f6efe1', 'center', 8); lastLabel = x; }
+  }
+  // you
+  const fr = r.countdown > 0 ? 'stand' : r.air ? 'jump' : r.v < 0.4 ? 'wave' : FRAMES[Math.floor(r.anim) % 4];
+  shadow(PX, FOOT_ME, r.air ? 6 : 10);
+  const jitter = r.stumble > 0 ? (Math.floor(t * 30) % 2 ? 1 : -1) : 0;
+  drawRunner(SPR[G.sel], fr, PX + jitter, FOOT_ME + r.y - (fr === 'b' ? 1 : 0));
+  if (r.boost.beet > 0 || r.boost.nomio > 0){
+    ctx.fillStyle = r.boost.nomio > 0 ? '#ffd23f' : '#ff6fae';
+    for (let i = 0; i < 3; i++) ctx.fillRect(PX - 12 - i * 5 - Math.floor(t * 40 + i * 3) % 4, FOOT_ME + r.y - 6 - i * 4, 3, 1);
+  }
+  for (const p of r.parts){ ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x - camX), Math.round(p.y), 2, 2); }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (G.screen === 'race') drawHUD(PX);
+}
+
+function loopPt(u){
+  const a = 0.55 - u * Math.PI * 2;
+  const c = Math.cos(a), s = Math.sin(a);
+  const ex = Math.sign(c) * Math.pow(Math.abs(c), 0.7), ey = Math.sign(s) * Math.pow(Math.abs(s), 0.7);
+  const rot = -0.62, x = ex * 18, y = ey * 13;
+  return [x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)];
+}
+function drawMinimap(x0, y0){
+  const w = 52, h = 40;
+  ctx.fillStyle = INK; ctx.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
+  ctx.fillStyle = '#bfe3a6'; ctx.fillRect(x0, y0, w, h);
+  ctx.fillStyle = '#7fc4ef'; ctx.fillRect(x0 + 18, y0 + 13, 12, 8); ctx.fillRect(x0 + 22, y0 + 18, 10, 7); ctx.fillRect(x0 + 15, y0 + 22, 6, 4);
+  ctx.fillStyle = '#e8b4a0'; ctx.fillRect(x0 + 27, y0 + 25, 6, 4);
+  const cx = x0 + w / 2, cy = y0 + h / 2;
+  ctx.fillStyle = '#f26a1b';
+  for (let i = 0; i < 140; i++){ const [px, py] = loopPt(i / 140); ctx.fillRect(Math.round(cx + px), Math.round(cy + py), 2, 2); }
+  for (const v of race.rivals){
+    const [px, py] = loopPt(((Math.min(v.d, TOTAL) % LAP) / LAP));
+    ctx.fillStyle = RUNNERS[v.i].pal.t; ctx.fillRect(Math.round(cx + px), Math.round(cy + py), 2, 2);
+  }
+  const [px, py] = loopPt(((Math.min(race.d, TOTAL - 0.01) % LAP) / LAP));
+  ctx.fillStyle = INK; ctx.fillRect(Math.round(cx + px) - 2, Math.round(cy + py) - 2, 5, 5);
+  ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(cx + px) - 1, Math.round(cy + py) - 1, 3, 3);
+}
+function drawHUD(PX){
+  const r = race;
+  const tDisp = r.finished ? r.finishVT : r.vt;
+  ctx.fillStyle = 'rgba(27,20,32,.6)'; ctx.fillRect(4, 4, 98, 46);
+  txt(fmt(tDisp), 9, 9, '#f6efe1', 'left', 16);
+  txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
+  txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
+  // energy bar
+  const cap = CAP + (r.boost.gel > 0 ? 0.5 : 0);
+  const fr = Math.max(0, Math.min(1, r.e / cap));
+  ctx.fillStyle = INK; ctx.fillRect(4, 54, 98, 8);
+  ctx.fillStyle = '#3a3440'; ctx.fillRect(5, 55, 96, 6);
+  ctx.fillStyle = fr < 0.45 ? '#47b84a' : fr < 0.75 ? '#e6f02a' : '#f26a1b';
+  ctx.fillRect(5, 55, Math.round(96 * fr), 6);
+  ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(5, 55, Math.round(96 * fr), 1);
+  // active boosts
+  let bx = 4;
+  for (const k of ['beet', 'nomio', 'gel']){
+    if (r.boost[k] <= 0) continue;
+    ctx.drawImage(IMG[k], bx, 66);
+    ctx.fillStyle = INK; ctx.fillRect(bx, 77, 12, 3);
+    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7) / boostMult()))), 1);
+    bx += 16;
+  }
+  // right column
+  drawMinimap(W - 56, 6);
+  const pos = 1 + r.rivals.filter(v => (r.finished ? v.T < r.finishVT : v.d > r.d)).length;
+  txt('P' + pos + '/' + (r.rivals.length + 1), W - 4, 52, '#e6f02a', 'right');
+  txt(fmtPace(r.v) + '/K', W - 4, 62, '#f6efe1', 'right');
+  txt(r.tapTimes.length + ' TAP/S', W - 4, 72, '#b7aec2', 'right');
+  // messages
+  r.msgs.forEach((m, i) => {
+    const y = 96 + Math.round(OFF * 0.5) - Math.round(m.t * 14) - i * 12;
+    if (Math.floor(m.t * 10) % 2 === 0 || m.t < 0.8) txt(m.s, W / 2, y, m.col, 'center', 8);
+  });
+  if (r.countdown > 0){
+    const c = Math.ceil(r.countdown);
+    txt(String(c), W / 2, 84 + Math.round(OFF * 0.5), '#e6f02a', 'center', 24);
+    txt('GET READY', W / 2, 114 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
+  } else if (r.vt < 30 && !r.finished){
+    if (Math.floor(G.time * 3) % 2) txt('TAP RUN FAST!', W / 2, 108 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
+  }
+}
+
+/* ---------- screens ---------- */
+const app = $('#app');
+function show(screen){
+  G.screen = screen;
+  app.dataset.screen = screen;
+  for (const id of ['title', 'select', 'race', 'result']) $('#scr-' + id).hidden = (id !== screen);
+  resize();
+}
+function startRace(){
+  audioInit();
+  newRace();
+  show('race');
+  AU.playing = true; AU.step = 0; AU.nextT = 0;
+  requestWake();
+}
+let wake = null;
+async function requestWake(){ try { if (navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); } catch(e){ wake = null; } }
+function releaseWake(){ try { wake && wake.release(); } catch(e){} wake = null; }
+
+function legend(){
+  const ul = $('#legend'); ul.innerHTML = '';
+  for (const k of ['beet', 'nomio', 'gel']){
+    const li = document.createElement('li');
+    const c = mk(10, 10); c.getContext('2d').drawImage(IMG[k], 0, 0);
+    li.appendChild(c);
+    li.appendChild(document.createTextNode(ITEM_INFO[k].name + ': ' + ITEM_INFO[k].desc));
+    ul.appendChild(li);
+  }
+  const best = RUNNERS.filter(r => pbs[r.id]).map(r => r.name + ' ' + fmt(pbs[r.id]));
+  $('#titleBest').textContent = best.length ? 'Pack PBs on this phone: ' + best.join(' · ') : 'Goal for the pack: sub 18:00.';
+}
+
+function renderCards(){
+  const wrap = $('#cards'); wrap.innerHTML = '';
+  RUNNERS.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'card'; el.tabIndex = 0; el.setAttribute('role', 'option');
+    el.setAttribute('aria-pressed', String(i === G.sel)); el.setAttribute('aria-selected', String(i === G.sel));
+    el.style.setProperty('--shirt', r.pal.t);
+    const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
+    const nameHtml = r.id === 'wolf'
+      ? `<input class="name-input" id="wolfName" maxlength="10" value="${r.name.replace(/"/g, '')}" aria-label="Your runner name">`
+      : `<h3>${r.name}</h3>`;
+    el.innerHTML = `<div class="card-top"><canvas width="14" height="20"></canvas></div>
+      <div class="card-body">${nameHtml}<p class="tag">${r.tag}</p>
+      <dl class="stats"><dt>SPD</dt><dd>${pips(r.spd)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
+      <div class="card-foot"><span class="pb">PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</span>
+      <button class="look" type="button" aria-label="Change skin tone"><i style="--swatch:${SKINS[r.skin]}"></i>LOOK</button></div></div>`;
+    el.querySelector('canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
+    el.addEventListener('click', e => {
+      if (e.target.closest('.look')){
+        r.skin = (r.skin + 1) % SKINS.length;
+        looks[r.id] = r.skin; store.set('looks', looks);
+        rebuildRunnerSprites(); renderCards(); return;
+      }
+      if (e.target.closest('input')){ choose(i, false); return; }
+      choose(i, true);
+    });
+    el.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === el){ e.preventDefault(); choose(i, true); } });
+    wrap.appendChild(el);
+  });
+  const inp = $('#wolfName');
+  if (inp){
+    inp.addEventListener('input', () => {
+      const v = inp.value.toUpperCase().replace(/[^A-Z0-9 .\-]/g, '').slice(0, 10);
+      RUNNERS[0].name = v.trim() || 'WOLF'; store.set('name', RUNNERS[0].name);
+    });
+    inp.addEventListener('keydown', e => e.stopPropagation());
+  }
+}
+function choose(i, rerender){
+  if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
+  document.querySelectorAll('.card').forEach((c, k) => { c.setAttribute('aria-pressed', String(k === i)); c.setAttribute('aria-selected', String(k === i)); });
+  if (rerender){
+    const c = document.querySelectorAll('.card')[i];
+    if (c) c.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', inline:'center', block:'nearest' });
+  }
+}
+
+let lastShare = '';
+function showResults(){
+  if (G.screen !== 'race') return;
+  const r = race, me = r.me;
+  releaseWake();
+  const myT = r.finishVT;
+  const rows = [{ name: me.name, t: myT, me: true, id: me.id }].concat(r.rivals.map(v => ({ name: RUNNERS[v.i].name, t: v.T, id: RUNNERS[v.i].id })));
+  rows.sort((a, b) => a.t - b.t);
+  const pos = rows.findIndex(x => x.me) + 1;
+  const prev = pbs[me.id];
+  const isPB = !prev || myT < prev;
+  if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
+  $('#resName').textContent = me.name + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
+  $('#resTime').textContent = fmt(myT);
+  const badges = [];
+  if (isPB) badges.push(['NEW PB!', 'pb']);
+  if (myT < 1020) badges.push(['SUB 17!', '']);
+  else if (myT < 1080) badges.push(['SUB 18!', '']);
+  if (pos === 1) badges.push(['PACK LEADER', '']);
+  if (r.obstacles.every(o => !o.hit)) badges.push(['CLEAN RUN', '']);
+  $('#badges').innerHTML = badges.map(([b, c]) => `<span class="badge ${c}">${b}</span>`).join('') || '<span class="badge">FINISHED</span>';
+  const lap2 = myT - r.split;
+  const stats = [
+    ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
+    ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
+    ['Taps', String(r.taps)], ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+  ];
+  $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
+  lastShare = `Wolf Pack Parkrun, Zuiderpark 5K\n${me.name}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps`;
+  $('#copyMsg').textContent = '';
+  show('result');
+}
+
+/* ---------- input ---------- */
+function bindPad(el, fn){
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); audioInit(); fn();
+    el.classList.add('down'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('down'), 70);
+  });
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); if (!e.repeat) fn(); } });
+}
+bindPad($('#runPad'), tapRun);
+bindPad($('#jumpPad'), tapJump);
+cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
+window.addEventListener('keydown', e => {
+  if (G.screen !== 'race' || e.repeat) return;
+  if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){ e.preventDefault(); tapRun(); }
+  else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
+});
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+$('#startBtn').addEventListener('click', () => { audioInit(); sfx('select'); show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
+$('#backBtn').addEventListener('click', () => { legend(); show('title'); });
+$('#goBtn').addEventListener('click', startRace);
+$('#againBtn').addEventListener('click', startRace);
+$('#changeBtn').addEventListener('click', () => { show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
+$('#exitBtn').addEventListener('click', () => { AU.playing = false; releaseWake(); race = null; show('select'); renderCards(); });
+$('#muteBtn').addEventListener('click', () => { AU.muted = !AU.muted; store.set('muted', AU.muted); setMuteLabel(); audioInit(); });
+$('#copyBtn').addEventListener('click', () => {
+  const done = ok => { $('#copyMsg').textContent = ok ? 'Result copied. Paste it in the group chat.' : 'Select the text below and copy it.'; };
+  const fallback = () => {
+    const ta = $('#shareText'); ta.value = lastShare; ta.style.left = '0'; ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+    ta.style.left = '-9999px'; done(ok);
+  };
+  try { navigator.clipboard.writeText(lastShare).then(() => done(true), fallback); } catch(e){ fallback(); }
+});
+
+/* ---------- sizing + loop ---------- */
+function resize(){
+  const r = $('#stage').getBoundingClientRect();
+  if (r.width < 2 || r.height < 2) return;
+  const asp = r.width / r.height;
+  if (H * asp >= 240){ W = Math.min(460, Math.round(H * asp)); CH = H; }
+  else { W = 240; CH = Math.min(440, Math.round(240 / asp)); }
+  OFF = CH - H;
+  if (cv.width !== W || cv.height !== CH){ cv.width = W; cv.height = CH; }
+  ctx.imageSmoothingEnabled = false;
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe($('#stage'));
+window.addEventListener('resize', resize);
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+  update(dt); render(); music();
+  requestAnimationFrame(frame);
+}
+
+buildStatic();
+rebuildRunnerSprites();
+legend();
+setMuteLabel();
+resize();
+requestAnimationFrame(frame);
+if (document.fonts && document.fonts.load){ document.fonts.load('8px "Press Start 2P"').catch(() => {}); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && G.screen === 'race') requestWake(); });
+
+// test hook (harmless in play)
+window.__wolf = { G, get race(){ return race; }, tapRun, tapJump, startRace, show };
+})();
+</script>
