@@ -233,7 +233,7 @@ p{margin:0;max-width:60ch}
         <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
         <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
       </div>
-      <p class="hint">Keyboard: SPACE or → to run, ↑ to jump</p>
+      <p class="hint">Keyboard: SPACE or ← to run, ↑ to jump</p>
     </section>
 
     <section id="scr-result" hidden>
@@ -269,7 +269,7 @@ const LAP = 2500, TOTAL = 5000;
 const INC = 0.25, DRAG = 0.60, CAP = 3.6, BASEV = 1.8;   // tap energy model, speed = BASEV + energy (m/s)
 const GRAV = 560, JV = 188;
 const H = 192, PATH_TOP = 150, PATH_BOT = 167, FOOT_ME = 163, FOOT_RIV = 157;
-let W = 320, CH = 192, OFF = 0;   // canvas height grows on tall screens; extra rows become sky
+let W = 320, CH = 192, OFF = 0, FLIP = false;   // FLIP: world is mirrored so the pack runs clockwise (to the left)   // canvas height grows on tall screens; extra rows become sky
 
 const cv = $('#game'), ctx = cv.getContext('2d');
 
@@ -644,9 +644,15 @@ function drawScene(camX, time, sunset){
 /* ---------- text ---------- */
 function txt(s, x, y, col = '#fff', align = 'left', size = 8, shadow = INK){
   ctx.font = size + 'px "Press Start 2P", ui-monospace, monospace';
-  ctx.textAlign = align; ctx.textBaseline = 'top';
+  ctx.textBaseline = 'top';
+  if (FLIP){   // keep words readable inside the mirrored world
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, OFF);
+    x = W - x; align = align === 'left' ? 'right' : align === 'right' ? 'left' : align;
+  }
+  ctx.textAlign = align;
   if (shadow){ ctx.fillStyle = shadow; ctx.fillText(s, x + 1, y + 1); }
   ctx.fillStyle = col; ctx.fillText(s, x, y);
+  if (FLIP) ctx.restore();
 }
 const fmt = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const fmtPace = v => v > 0.3 ? fmt(1000 / v) : '--:--';
@@ -843,9 +849,9 @@ function shadow(x, foot, w){ ctx.fillStyle = 'rgba(20,14,26,.35)'; ctx.fillRect(
 function render(){
   ctx.imageSmoothingEnabled = false;
   const t = G.time;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
   if (OFF > 0){ ctx.fillStyle = G.screen === 'title' ? SKY_SUN[0] : SKY_DAY[0]; ctx.fillRect(0, 0, W, OFF + 2); }
-  ctx.setTransform(1, 0, 0, 1, 0, OFF);
+  ctx.setTransform(-1, 0, 0, 1, W, OFF); FLIP = true;
   if (G.screen === 'title'){
     const camX = -W / 2 + Math.sin(t * 0.25) * 24 + 10;
     drawScene(camX, t, true);
@@ -855,7 +861,7 @@ function render(){
       shadow(x, FOOT_ME, 10);
       drawRunner(SPR[i], f, x, FOOT_ME - (f === 'b' ? 1 : 0));
     });
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
     txt('ZUIDERPARK', W / 2, 18 + Math.round(OFF * 0.4), '#f6efe1', 'center', 16);
     txt('PARKRUN 5K', W / 2, 40 + Math.round(OFF * 0.4), '#e6f02a', 'center', 8);
     return;
@@ -926,12 +932,12 @@ function render(){
     for (let i = 0; i < 3; i++) ctx.fillRect(PX - 12 - i * 5 - Math.floor(t * 40 + i * 3) % 4, FOOT_ME + r.y - 6 - i * 4, 3, 1);
   }
   for (const p of r.parts){ ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x - camX), Math.round(p.y), 2, 2); }
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
   if (G.screen === 'race') drawHUD(PX);
 }
 
 function loopPt(u){
-  const a = 0.55 - u * Math.PI * 2;
+  const a = 0.55 + u * Math.PI * 2;   // clockwise on screen
   const c = Math.cos(a), s = Math.sin(a);
   const ex = Math.sign(c) * Math.pow(Math.abs(c), 0.7), ey = Math.sign(s) * Math.pow(Math.abs(s), 0.7);
   const rot = -0.62, x = ex * 18, y = ey * 13;
@@ -1171,7 +1177,7 @@ bindPad($('#jumpPad'), tapJump);
 cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
 window.addEventListener('keydown', e => {
   if (G.screen !== 'race' || e.repeat) return;
-  if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){ e.preventDefault(); tapRun(); }
+  if (e.key === ' ' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){ e.preventDefault(); tapRun(); }
   else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
 });
 document.addEventListener('gesturestart', e => e.preventDefault());
