@@ -69,7 +69,7 @@ p{margin:0;max-width:60ch}
 .legend canvas{width:24px;height:24px;image-rendering:pixelated}
 
 .btn{
-  font-family:var(--f-display);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+  font-family:var(--f-display);font-size:12px;line-height:1.5;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
   background:var(--hivis);border:3px solid var(--ink);padding:14px 16px;cursor:pointer;
   box-shadow:inset -3px -3px 0 rgba(0,0,0,.22),inset 3px 3px 0 rgba(255,255,255,.5),0 5px 0 var(--ink);
 }
@@ -94,7 +94,7 @@ p{margin:0;max-width:60ch}
   font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;background:radial-gradient(circle at 50% 46%,#2f7a3c 0%,#123020 55%,#06080c 100%)}
 #cards .cover img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block;pointer-events:none;-webkit-user-drag:none}
 #cards.dragging .cover{transition:none}
-.flow-caption{position:absolute;left:0;right:0;bottom:12px;text-align:center;pointer-events:none}
+.flow-caption{position:absolute;left:0;right:0;bottom:24px;text-align:center;pointer-events:none}
 .flow-caption b{display:block;font-family:var(--f-display);font-weight:400;font-size:12px;color:var(--paper);letter-spacing:.06em}
 .flow-caption span{font-size:19px;color:var(--muted)}
 .info{display:grid;grid-template-columns:64px 1fr;gap:4px 14px;align-items:start;padding:12px;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink)}
@@ -104,14 +104,23 @@ p{margin:0;max-width:60ch}
 .info .stats{margin-top:2px}
 .info .perk{grid-column:1 / -1;font-size:18px;line-height:1.1;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:8px}
 .info .pb{grid-column:1 / -1}
-.flow-nav{display:flex;align-items:center;justify-content:center;gap:16px}
+/* arrows and dots live inside the carousel */
+.flow .flow-arrow{position:absolute;top:116px;transform:translateY(-50%);z-index:2;width:40px;height:52px;opacity:.92}
+.flow .flow-arrow:active{transform:translateY(calc(-50% + 3px))}
+#prevBtn{left:max(8px, env(safe-area-inset-left, 0px))}
+#nextBtn{right:max(8px, env(safe-area-inset-right, 0px))}
+.flow .dots{position:absolute;left:0;right:0;bottom:8px;justify-content:center;pointer-events:none}
+.flow .dots i{width:8px;height:8px}
+.stat-help{font-size:17px}
+/* keep BACK and TO THE START always visible */
+#scr-select .row{position:sticky;bottom:-18px;z-index:5;padding-block:10px 18px;margin-bottom:-18px;background:linear-gradient(to top,var(--deck) 75%,rgba(36,33,42,0))}
 .flow-arrow{font-family:var(--f-display);font-size:12px;width:44px;height:40px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
 .flow-arrow:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 .flow-arrow:focus-visible,#cards:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
 .dots{display:flex;gap:8px}
 .dots i{width:10px;height:10px;border:2px solid var(--ink);background:var(--deck-line)}
 .dots i.on{background:var(--hivis)}
-#app[data-screen="select"] #stage{flex-basis:22%}
+#app[data-screen="select"] #stage{flex-basis:11%;min-height:84px}
 #app[data-screen="select"] #panel{padding-block:12px 18px}
 #scr-select{gap:10px}
 .card{
@@ -218,17 +227,16 @@ p{margin:0;max-width:60ch}
         <p class="eyebrow">STEP 1 OF 2</p>
         <h2>CHOOSE YOUR RUNNER</h2>
       </div>
-      <div class="flow"><div id="cards" role="listbox" aria-label="Runners, swipe to browse" tabindex="0"></div><div class="flow-caption" aria-live="polite"><b id="flowName"></b><span id="flowTag"></span></div></div>
-      <div class="flow-nav">
+      <div class="flow"><div id="cards" role="listbox" aria-label="Runners, swipe to browse" tabindex="0"></div>
         <button class="flow-arrow" id="prevBtn" type="button" aria-label="Previous runner">&lt;</button>
-        <div class="dots" id="dots" aria-hidden="true"></div>
         <button class="flow-arrow" id="nextBtn" type="button" aria-label="Next runner">&gt;</button>
-      </div>
+        <div class="flow-caption" aria-live="polite"><b id="flowName"></b><span id="flowTag"></span></div>
+        <div class="dots" id="dots" aria-hidden="true"></div></div>
       <div class="info" id="runnerInfo"></div>
-      <p class="muted">FAST twitch: every tap pushes harder. SLOW twitch: your speed fades slower when you ease off. JMP: higher jumps. BST: longer boosts. LOVE: bigger boost from the fans' hearts.</p>
+      <p class="muted stat-help">FAST: taps push harder · SLOW: speed fades slower · LOVE: bigger heart boost · JMP: higher jumps · BST: longer boosts</p>
       <div class="row">
         <button class="btn alt" id="backBtn" type="button">BACK</button>
-        <button class="btn hot" id="goBtn" type="button">TO THE START</button>
+        <button class="btn hot" id="goBtn" type="button">START RACE</button>
       </div>
     </section>
 
@@ -1313,7 +1321,7 @@ function resize(){
   const r = $('#stage').getBoundingClientRect();
   if (r.width < 2 || r.height < 2) return;
   const asp = r.width / r.height;
-  if (H * asp >= 240){ W = Math.min(460, Math.round(H * asp)); CH = H; }
+  if (H * asp >= 240){ W = Math.min(1000, Math.round(H * asp)); CH = H; }
   else { W = 240; CH = Math.min(440, Math.round(240 / asp)); }
   OFF = CH - H;
   if (cv.width !== W || cv.height !== CH){ cv.width = W; cv.height = CH; }
