@@ -82,13 +82,26 @@ p{margin:0;max-width:60ch}
 @keyframes blink{to{visibility:hidden}}
 
 /* runner cards */
-.flow{position:relative;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));overflow:hidden;padding-block:14px 0}
-#cards{position:relative;z-index:0;height:420px;perspective:900px;perspective-origin:50% 40%;touch-action:pan-y;cursor:grab;outline:none}
+.flow{position:relative;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));overflow:hidden;
+  background:radial-gradient(120% 70% at 50% 38%,#1c1a22 0%,#050407 70%);border-block:3px solid var(--ink)}
+#cards{position:relative;z-index:0;height:300px;perspective:560px;perspective-origin:50% 42%;touch-action:pan-y;cursor:grab;outline:none}
 #cards.dragging{cursor:grabbing}
-#cards .card{position:absolute;left:50%;top:8px;width:220px;margin-left:-110px;transform-style:preserve-3d;will-change:transform;
-  transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s,filter .3s;
-  -webkit-box-reflect:below 6px linear-gradient(transparent 78%,rgba(255,255,255,.22))}
-#cards.dragging .card{transition:none}
+#cards .cover{position:absolute;left:50%;top:26px;width:180px;height:180px;margin-left:-90px;background:#000;
+  transform-style:preserve-3d;will-change:transform;backface-visibility:hidden;
+  transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .4s;
+  -webkit-box-reflect:below 2px linear-gradient(transparent 55%,rgba(255,255,255,.32))}
+#cards .cover img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block;pointer-events:none;-webkit-user-drag:none}
+#cards.dragging .cover{transition:none}
+.flow-caption{position:absolute;left:0;right:0;bottom:12px;text-align:center;pointer-events:none}
+.flow-caption b{display:block;font-family:var(--f-display);font-weight:400;font-size:12px;color:var(--paper);letter-spacing:.06em}
+.flow-caption span{font-size:19px;color:var(--muted)}
+.info{display:grid;grid-template-columns:64px 1fr;gap:4px 14px;align-items:start;padding:12px;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink)}
+.info canvas{grid-row:span 4;width:56px;height:80px;image-rendering:pixelated;background:linear-gradient(var(--sky) 0 72%,var(--grass) 72%);border:2px solid var(--ink);padding:4px}
+.info h3{font-size:12px;line-height:1.4}
+.info .known{font-family:var(--f-display);font-size:7px;line-height:1.6;color:var(--ink)}
+.info .stats{margin-top:2px}
+.info .perk{grid-column:1 / -1;font-size:18px;line-height:1.1;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:8px}
+.info .pb{grid-column:1 / -1}
 .flow-nav{display:flex;align-items:center;justify-content:center;gap:16px}
 .flow-arrow{font-family:var(--f-display);font-size:12px;width:44px;height:40px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
 .flow-arrow:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
@@ -96,7 +109,7 @@ p{margin:0;max-width:60ch}
 .dots{display:flex;gap:8px}
 .dots i{width:10px;height:10px;border:2px solid var(--ink);background:var(--deck-line)}
 .dots i.on{background:var(--hivis)}
-#app[data-screen="select"] #stage{flex-basis:26%}
+#app[data-screen="select"] #stage{flex-basis:22%}
 #app[data-screen="select"] #panel{padding-block:12px 18px}
 #scr-select{gap:10px}
 .card{
@@ -201,13 +214,14 @@ p{margin:0;max-width:60ch}
         <p class="eyebrow">STEP 1 OF 2</p>
         <h2>CHOOSE YOUR RUNNER</h2>
       </div>
-      <div class="flow"><div id="cards" role="listbox" aria-label="Runners, swipe to browse" tabindex="0"></div></div>
+      <div class="flow"><div id="cards" role="listbox" aria-label="Runners, swipe to browse" tabindex="0"></div><div class="flow-caption" aria-live="polite"><b id="flowName"></b><span id="flowTag"></span></div></div>
       <div class="flow-nav">
         <button class="flow-arrow" id="prevBtn" type="button" aria-label="Previous runner">&lt;</button>
         <div class="dots" id="dots" aria-hidden="true"></div>
         <button class="flow-arrow" id="nextBtn" type="button" aria-label="Next runner">&gt;</button>
       </div>
-      <p class="muted">Swipe or tap a card. SPD: taps count more. JMP: higher jumps. BST: longer boosts.</p>
+      <div class="info" id="runnerInfo"></div>
+      <p class="muted">SPD: taps count more. JMP: higher jumps. BST: longer boosts.</p>
       <div class="row">
         <button class="btn alt" id="backBtn" type="button">BACK</button>
         <button class="btn hot" id="goBtn" type="button">TO THE START</button>
@@ -1020,35 +1034,36 @@ function renderCards(){
   const wrap = $('#cards'); wrap.innerHTML = '';
   RUNNERS.forEach((r, i) => {
     const el = document.createElement('div');
-    el.className = 'card'; el.setAttribute('role', 'option');
-    el.setAttribute('aria-pressed', String(i === G.sel)); el.setAttribute('aria-selected', String(i === G.sel));
-    el.style.setProperty('--shirt', r.pal.t);
-    const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
-    el.innerHTML = `<div class="card-top"><img src="${r.photo}" alt="${r.full}" loading="lazy"><canvas width="14" height="20" aria-hidden="true"></canvas></div>
-      <div class="card-body"><h3>${r.name}</h3><p class="tag">${r.tag}</p><p class="known">${r.known}</p>
-      <dl class="stats"><dt>SPD</dt><dd>${pips(r.spd)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
-      <p class="perk">${r.perk}</p>
-      <div class="card-foot"><span class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</span></div></div>`;
-    el.querySelector('canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
+    el.className = 'cover'; el.setAttribute('role', 'option');
+    el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
+    el.innerHTML = `<img src="${r.photo}" alt="" draggable="false">`;
     wrap.appendChild(el);
   });
   $('#dots').innerHTML = RUNNERS.map(() => '<i></i>').join('');
-  flowPos = G.sel; layoutFlow();
+  flowPos = G.sel; layoutFlow(); renderInfo();
+}
+function renderInfo(){
+  const r = RUNNERS[G.sel], i = G.sel;
+  const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
+  $('#flowName').textContent = r.full.toUpperCase();
+  $('#flowTag').textContent = r.tag;
+  $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${r.name}</h3><p class="known">${r.known}</p>
+    <dl class="stats"><dt>SPD</dt><dd>${pips(r.spd)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
+    <p class="perk">${r.perk}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>`;
+  $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
 /* Cover Flow: centre card faces you, neighbours swing away in 3D */
 let flowPos = 0;
 function layoutFlow(){
-  const cards = document.querySelectorAll('#cards .card');
+  const cards = document.querySelectorAll('#cards .cover');
   cards.forEach((c, i) => {
     const o = i - flowPos, a = Math.abs(o), sg = Math.sign(o), n = Math.min(a, 1);
-    const x = sg * (n * 150 + Math.max(a - 1, 0) * 52);
-    const rot = -sg * n * 58;
-    const z = -n * 170 - Math.max(a - 1, 0) * 30;
+    const x = sg * (n * 118 + Math.max(a - 1, 0) * 34);
+    const rot = -sg * n * 72;
+    const z = -n * 150;
     c.style.transform = `translateX(${x}px) translateZ(${z}px) rotateY(${rot}deg)`;
     c.style.zIndex = String(100 - Math.round(a * 10));
-    c.style.opacity = a > 3.2 ? '0' : '1';
-    c.style.filter = `brightness(${1 - n * 0.35})`;
-    c.style.pointerEvents = a > 3 ? 'none' : '';
+    c.style.filter = `brightness(${1 - n * 0.3 - Math.max(a - 1, 0) * 0.08})`;
   });
   const k = Math.round(flowPos);
   document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i === k));
@@ -1063,7 +1078,7 @@ function flowTo(i){
   wrap.addEventListener('pointerdown', e => {
     if (e.button !== undefined && e.button !== 0) return;
     down = true; moved = 0; sx = lastX = e.clientX; sp = flowPos; lastT = performance.now(); vel = 0;
-    tapCard = e.target.closest('.card');
+    tapCard = e.target.closest('.cover');
     wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
   });
   wrap.addEventListener('pointermove', e => {
@@ -1072,13 +1087,13 @@ function flowTo(i){
     if (moved > 6) wrap.classList.add('dragging');
     const now = performance.now();
     vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
-    flowPos = Math.max(-0.4, Math.min(RUNNERS.length - 0.6, sp - dx / 150));
+    flowPos = Math.max(-0.4, Math.min(RUNNERS.length - 0.6, sp - dx / 90));
     layoutFlow();
   });
   const end = () => {
     if (!down) return; down = false; wrap.classList.remove('dragging');
     if (moved <= 6){
-      const cards = [...document.querySelectorAll('#cards .card')];
+      const cards = [...document.querySelectorAll('#cards .cover')];
       const i = cards.indexOf(tapCard);
       flowTo(i >= 0 ? i : Math.round(flowPos));
       return;
@@ -1102,7 +1117,8 @@ function flowTo(i){
 })();
 function choose(i, rerender){
   if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
-  document.querySelectorAll('.card').forEach((c, k) => { c.setAttribute('aria-pressed', String(k === i)); c.setAttribute('aria-selected', String(k === i)); });
+  document.querySelectorAll('#cards .cover').forEach((c, k) => c.setAttribute('aria-selected', String(k === i)));
+  if ($('#runnerInfo')) renderInfo();
   if (rerender){ flowPos = i; layoutFlow(); }
 }
 
