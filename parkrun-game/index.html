@@ -92,6 +92,10 @@ p{margin:0;max-width:60ch}
   -webkit-box-reflect:below 2px linear-gradient(transparent 55%,rgba(255,255,255,.32))}
 #cards .cover .emo{width:100%;height:100%;display:grid;place-items:center;font-size:118px;line-height:1;
   font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;background:radial-gradient(circle at 50% 46%,#2f7a3c 0%,#123020 55%,#06080c 100%)}
+#cards .cover.teaser img{filter:grayscale(.85) brightness(.6)}
+#cards .cover .soon{position:absolute;left:8px;right:8px;top:10px;text-align:center;font-family:var(--f-display);font-size:10px;letter-spacing:.06em;color:var(--ink);background:var(--hivis);border:2px solid var(--ink);padding:5px 4px}
+.soon-box{grid-row:span 3;width:56px;height:80px;display:grid;place-items:center;font-family:var(--f-display);font-size:28px;color:var(--paper);background:var(--deck);border:2px solid var(--ink)}
+.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
 #cards .cover img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block;pointer-events:none;-webkit-user-drag:none}
 #cards.dragging .cover{transition:none}
 .flow-caption{position:absolute;left:0;right:0;bottom:24px;text-align:center;pointer-events:none}
@@ -372,8 +376,15 @@ function emojiCover(ch){
 let secretUnlocked = !!store.get('draakie', false);
 const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
 // Carousel order (runner indices). Once unlocked, Draakie sits right next to Julian, at the far left.
+// Coming soon: teaser covers at the end of the carousel, not playable (shown as -1, -2, -3 in the order)
+const TEASERS = [
+  { id:'ren', full:'Ren', tag:'Ekiden runner.', photo:'img/ren.jpg' },
+  { id:'kiprun', full:'Kiprun', tag:'The hill specialist.', photo:'img/kiprun.jpg' },
+  { id:'sander', full:'Sander', tag:'Trail runner.', photo:'img/sander.jpg' },
+];
 const flowOrder = () => { const a = []; for (let i = 0; i < visibleCount(); i++) a.push(i);
-  if (secretUnlocked){ a.pop(); a.unshift(RUNNERS.length - 1); } return a; };
+  if (secretUnlocked){ a.pop(); a.unshift(RUNNERS.length - 1); }
+  TEASERS.forEach((t, k) => a.push(-(k + 1))); return a; };
 const posOf = i => Math.max(0, flowOrder().indexOf(i));
 let pbs = store.get('pbs', {});
 
@@ -1179,6 +1190,7 @@ function show(screen){
   resize();
 }
 function startRace(){
+  if (G.screen === 'select' && G.teaser >= 0) return;   // teasers are not playable
   audioInit();
   newRace();
   show('race');
@@ -1205,15 +1217,21 @@ function legend(){
 function renderCards(){
   const wrap = $('#cards'); wrap.innerHTML = '';
   flowOrder().forEach(i => {
-    const r = RUNNERS[i];
     const el = document.createElement('div');
+    if (i < 0){
+      const t = TEASERS[-i - 1];
+      el.className = 'cover teaser'; el.setAttribute('role', 'option'); el.setAttribute('aria-selected', 'false'); el.setAttribute('aria-label', t.full + ', coming soon');
+      el.innerHTML = `<img src="${t.photo}" alt="" draggable="false"><span class="soon">COMING SOON</span>`;
+      wrap.appendChild(el); return;
+    }
+    const r = RUNNERS[i];
     el.className = 'cover'; el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
     el.innerHTML = r.emoji ? `<div class="emo" aria-hidden="true">${r.emoji}</div>` : `<img src="${r.photo}" alt="" draggable="false">`;
     wrap.appendChild(el);
   });
   $('#dots').innerHTML = flowOrder().map(() => '<i></i>').join('');
-  flowPos = posOf(G.sel); layoutFlow(); renderInfo();
+  G.teaser = -1; $('#goBtn').disabled = false; flowPos = posOf(G.sel); layoutFlow(); renderInfo();
 }
 function renderInfo(){
   const r = RUNNERS[G.sel], i = G.sel;
@@ -1244,12 +1262,12 @@ function layoutFlow(){
 /* Secret: on the first runner, press < five times to unlock Jony (Draakie) */
 let secretTaps = 0;
 function prevPress(){
-  if (!secretUnlocked && G.sel === 0){
+  if (!secretUnlocked && flowOrder()[Math.round(flowPos)] === 0){
     secretTaps++;
     if (secretTaps >= 5){ unlockSecret(); return; }
     if (secretTaps >= 3) sfx('beep');
   } else secretTaps = 0;
-  flowTo(posOf(G.sel) - 1);
+  flowTo(Math.round(flowPos) - 1);
 }
 function unlockSecret(){
   secretUnlocked = true; secretTaps = 0; store.set('draakie', true);
@@ -1260,7 +1278,8 @@ function unlockSecret(){
 function flowTo(pos){   // pos = place in the carousel
   const order = flowOrder();
   pos = Math.max(0, Math.min(order.length - 1, pos));
-  flowPos = pos; layoutFlow(); choose(order[pos]);
+  flowPos = pos; layoutFlow();
+  if (order[pos] < 0) showTeaser(-order[pos] - 1, pos); else choose(order[pos]);
 }
 (() => {
   const wrap = $('#cards');
@@ -1294,18 +1313,30 @@ function flowTo(pos){   // pos = place in the carousel
   wrap.addEventListener('pointercancel', end);
   wrap.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft'){ e.preventDefault(); prevPress(); }
-    if (e.key === 'ArrowRight'){ e.preventDefault(); secretTaps = 0; flowTo(posOf(G.sel) + 1); }
+    if (e.key === 'ArrowRight'){ e.preventDefault(); secretTaps = 0; flowTo(Math.round(flowPos) + 1); }
     if (e.key === 'Enter'){ e.preventDefault(); startRace(); }
   });
   wrap.addEventListener('wheel', e => {
     if (Math.abs(e.deltaX) < 20 || wrap._wl) return;
     wrap._wl = true; setTimeout(() => wrap._wl = false, 350);
-    flowTo(posOf(G.sel) + Math.sign(e.deltaX));
+    flowTo(Math.round(flowPos) + Math.sign(e.deltaX));
   }, { passive:true });
   $('#prevBtn').addEventListener('click', prevPress);
-  $('#nextBtn').addEventListener('click', () => { secretTaps = 0; flowTo(posOf(G.sel) + 1); });
+  $('#nextBtn').addEventListener('click', () => { secretTaps = 0; flowTo(Math.round(flowPos) + 1); });
 })();
+function showTeaser(k, pos){
+  const t = TEASERS[k];
+  if (G.teaser !== k) sfx('select');
+  G.teaser = k;
+  document.querySelectorAll('#cards .cover').forEach((c, j) => c.setAttribute('aria-selected', String(j === pos)));
+  $('#flowName').textContent = t.full.toUpperCase();
+  $('#flowTag').textContent = t.tag + ' Coming soon.';
+  $('#runnerInfo').innerHTML = `<div class="soon-box" aria-hidden="true">?</div><h3>${t.full.toUpperCase()}</h3><p class="known">COMING SOON TO WOLFPACK RUN</p>
+    <p class="perk">${t.tag} Stats, perk and pixel runner are being trained right now. Not playable yet, stay tuned!</p>`;
+  const go = $('#goBtn'); go.disabled = true; go.textContent = 'LOCKED';
+}
 function choose(i, rerender){
+  G.teaser = -1; const go = $('#goBtn'); if (go){ go.disabled = false; go.textContent = 'START RACE'; }
   if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
   const p = posOf(i);
   document.querySelectorAll('#cards .cover').forEach((c, k) => c.setAttribute('aria-selected', String(k === p)));
