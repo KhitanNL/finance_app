@@ -285,7 +285,7 @@ const RUNNERS = [
     perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
   { id:'jordi', name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
-    perk:'Stopwatch pacer: tap energy fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.9 },
+    perk:'Crowd favourite: grabs hearts from cheering fans for a speed kick. Also fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
     pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
   { id:'luca', name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 18:38 5K and 4h marathon.', known:'5K 18:38 · Marathon 4h',
     perk:'Marathon engine: 5% faster on lap 2.', spd:3, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
@@ -373,11 +373,21 @@ const ITEM_INFO = {
   nomio: { label:'NOMIO SHOT!',  name:'Nomio shot', desc:'instant surge',      col:'#ffd23f' },
   gel:   { label:'GEL POWER!',   name:'Gel',        desc:'every tap counts more', col:'#7fb2ff' },
 };
+ITEM_ROWS.heart = [".hh.hh.","hHhhhhh","hhhhhhh",".hhhhh.","..hhh..","...h..."];
+ITEM_PAL.heart = { h:'#ff3b6b', H:'#ffd0dc' };
+ITEM_INFO.heart = { label:'HEART BOOST!', name:'Heart', desc:'fans cheer you faster', col:'#ff6f8f' };
 const GOOSE_ROWS = ["..ww........",".owww.......","yyww........","..ww........","..ww........","..wwwwwww...",".wwGwwwwwgg.",".wwwGGwwwg..","..wwwwwww...","....y..y....","...yy.yy...."];
 
 const IMG = {};
 function buildStatic(){
   for (const k in ITEM_ROWS) IMG[k] = sprite(ITEM_ROWS[k], ITEM_PAL[k]);
+  IMG.fans = [
+    { h:'#2a1a12', s:'#f1c27d', t:'#d0458a', n:'#ffd0dc', p:'#2a2d40', k:'#f4f4f4' },
+    { h:'#e8c26a', s:'#ffdbac', t:'#2f9fd6', n:'#bfe6ff', p:'#1b1420', k:'#ff5a3c' },
+    { h:'#1b1420', s:'#8d5524', t:'#f2c400', n:'#fff3c4', p:'#3a3f8f', k:'#f4f4f4' },
+    { h:'#a0401e', s:'#e0ac69', t:'#7a3ea0', n:'#e0c4f0', p:'#2a2d40', k:'#2a2d3a' },
+    { h:'#5a3a22', s:'#c68642', t:'#47b84a', n:'#d6f5c8', p:'#1b1420', k:'#f4f4f4' },
+  ].map(pal => runnerSprites({ head:'long', pal:Object.assign({ r:pal.s }, pal) }));
   IMG.goose = sprite(GOOSE_ROWS, { w:'#f4f2ea', G:'#c9c4b8', g:'#8a8578', y:'#f08a24', o:INK });
   IMG.trees = [0,1,2,3].map(buildTree);
   IMG.clouds = [buildCloud(0,false), buildCloud(1,false)];
@@ -725,8 +735,21 @@ function newRace(){
     const r = rng();
     items.push({ d, type: r < 0.4 ? 'beet' : r < 0.72 ? 'gel' : 'nomio', h: 25 + Math.floor(rng() * 14), got:false, ph:rng() * 6 });
   }
+  // cheering fans along the course; for Jordi they throw hearts
+  const crowds = [];
+  for (let d = 420; d < TOTAL - 200; d += 380 + rng() * 260){
+    if (nearBuilding(d)) continue;
+    crowds.push({ d, n: 3 + Math.floor(rng() * 3), seed: Math.floor(rng() * 1000) });
+    if (me.fx.hearts){
+      for (let k = 0; k < 3; k++){
+        const hd = d - 6 + k * 14;
+        for (let j = items.length - 1; j >= 0; j--) if (items[j].type !== 'heart' && Math.abs(items[j].d - hd) < 24) items.splice(j, 1);
+        items.push({ d: hd, type:'heart', h: k === 1 ? 30 : 14 + Math.floor(rng() * 6), got:false, ph:rng() * 6 });
+      }
+    }
+  }
   for (let d = 330; d < TOTAL - 160; d += 250 + rng() * 210){
-    if (nearBuilding(d) || items.some(i => Math.abs(i.d - d) < 40)) continue;
+    if (nearBuilding(d) || items.some(i => Math.abs(i.d - d) < 40) || crowds.some(c => Math.abs(c.d - d) < 50)) continue;
     obstacles.push({ d, type: rng() < 0.5 ? 'puddle' : 'goose', hit:false });
   }
   const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel).map(i => ({
@@ -734,8 +757,8 @@ function newRace(){
   }));
   race = {
     me, d:0, vt:0, e:0, v:0, y:0, vy:0, air:false, taps:0, tapTimes:[], lastTap:0, maxCad:0,
-    boost:{ beet:0, nomio:0, gel:0 }, slow:0, stumble:0, msgs:[], parts:[], lap:1, finished:false, finishVT:0, after:0,
-    got:0, countdown:3.2, lastCount:4, anim:0, items, obstacles, rivals, split:0
+    boost:{ beet:0, nomio:0, gel:0, heart:0 }, slow:0, stumble:0, msgs:[], parts:[], lap:1, finished:false, finishVT:0, after:0,
+    crowds, got:0, hearts:0, countdown:3.2, lastCount:4, anim:0, items, obstacles, rivals, split:0
   };
 }
 
@@ -784,6 +807,7 @@ function update(dt){
   if (r.boost.beet > 0) mult *= 1.08;
   if (r.boost.nomio > 0) mult *= 1.15;
   if (r.slow > 0) mult *= 0.55;
+  if (r.boost.heart > 0) mult *= 1.1;
   if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
   r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
   const prevD = r.d;
@@ -808,6 +832,7 @@ function update(dt){
       if (it.type === 'beet') r.boost.beet = 6 * bm;
       if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
+      if (it.type === 'heart'){ r.boost.heart = 3 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; }
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
       sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
@@ -898,6 +923,18 @@ function render(){
       drawRunner(IMG.vol[vi], Math.floor(t * 3 + j + bi) % 2 ? 'wave' : 'stand', x, PATH_TOP + 1);
     });
   });
+  // fans on the lawn, cheering
+  for (const c of r.crowds){
+    for (let k = 0; k < c.n; k++){
+      const x = c.d * PXM + (k - (c.n - 1) / 2) * 11 - camX; if (x < -10 || x > W + 10) continue;
+      drawRunner(IMG.fans[(c.seed + k) % IMG.fans.length], Math.floor(t * 4 + k + c.seed) % 2 ? 'wave' : 'stand', x, PATH_TOP + 1 - ((k + c.seed) % 2));
+    }
+    const cx = c.d * PXM - camX;
+    if (r.me.fx.hearts && cx > -20 && cx < W + 20){   // little hearts popping up over Jordi's fans
+      const ph = (t * 1.6 + c.seed) % 1;
+      ctx.drawImage(IMG.heart, Math.round(cx - 3 + Math.sin(t * 3 + c.seed) * 6), Math.round(PATH_TOP - 24 - ph * 14));
+    }
+  }
   // obstacles
   for (const o of r.obstacles){
     const x = Math.round(o.d * PXM - camX); if (x < -20 || x > W + 20) continue;
@@ -982,11 +1019,11 @@ function drawHUD(PX){
   ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(5, 55, Math.round(96 * fr), 1);
   // active boosts
   let bx = 4;
-  for (const k of ['beet', 'nomio', 'gel']){
+  for (const k of ['beet', 'nomio', 'gel', 'heart']){
     if (r.boost[k] <= 0) continue;
     ctx.drawImage(IMG[k], bx, 66);
     ctx.fillStyle = INK; ctx.fillRect(bx, 77, 12, 3);
-    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
+    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'heart' ? 3 : k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
     bx += 16;
   }
   // right column
@@ -1153,13 +1190,14 @@ function showResults(){
   if (myT < 1020) badges.push(['SUB 17!', '']);
   else if (myT < 1080) badges.push(['SUB 18!', '']);
   if (pos === 1) badges.push(['PACK LEADER', '']);
+  if (r.me.fx.hearts && r.hearts >= 12) badges.push(['CROWD FAVOURITE', '']);
   if (r.obstacles.every(o => !o.hit)) badges.push(['CLEAN RUN', '']);
   $('#badges').innerHTML = badges.map(([b, c]) => `<span class="badge ${c}">${b}</span>`).join('') || '<span class="badge">FINISHED</span>';
   const lap2 = myT - r.split;
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(r.me.fx.hearts ? [['Hearts', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
