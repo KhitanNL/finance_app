@@ -299,6 +299,9 @@ const RUNNERS = [
   { id:'ivan', name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
     perk:'PT power: higher top speed when you tap flat out.', spd:4, jmp:4, bst:2, target:1100, fx:{ cap:0.35 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
+  { id:'jeroen', name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
+    perk:'Executive start: leaves the line at full speed.', spd:4, jmp:3, bst:3, target:1105, fx:{ fastStart:true }, head:'beard',
+    pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
 ];
 let pbs = store.get('pbs', {});
 
@@ -335,6 +338,7 @@ function pcirc(g, cx, cy, r, col){
 const HEADS = {
   std:   ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."],
   curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
+  beard: ["....hhhh....","...hhhhhh...","...hssss....","...hssos....","....rrrr....",".....rr....."],
   long:  ["...hhhhh....","..hhhhhhh...","..hhssss....","..hhssos....","..hhrrrr....","..h..rr....."],
   capf:  ["....HHHH....","...HHHHHHH..","...hssss....","...hssos....","....ssss....",".....ss....."],
   cap:   ["....hhhh....",".hhhhhhhh...","...hssss....","...hssos....","....ssss....",".....ss....."],
@@ -767,7 +771,8 @@ function update(dt){
     r.countdown -= dt;
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
-    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
+    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = CAP + (r.me.fx.cap || 0); msg('EXECUTIVE START!', '#7fb2ff'); }
+      if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
