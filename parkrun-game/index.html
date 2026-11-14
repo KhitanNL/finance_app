@@ -281,28 +281,28 @@ const store = {
 
 /* ---------- runners ---------- */
 const RUNNERS = [
-  { id:'julian', name:'JULIAN', full:'Julian Bond', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
+  { id:'julian', shouts:['ASICS ADDICT!', 'GO JULIAN!'], name:'JULIAN', full:'Julian Bond', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
     perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
-  { id:'jordi', name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
+  { id:'jordi', shouts:['WE LOVE JORDI!', 'JORDI <3', 'MR 5K!'], name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
     perk:'Crowd favourite: hearts from the fans give him a big speed kick, three times what others get. Also fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
     pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
-  { id:'luca', name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 17:38 5K and 4h marathon.', known:'5K 17:38 · Marathon 4h',
+  { id:'luca', shouts:['MARATHON MAN!', 'GO LUCA!'], name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 17:38 5K and 4h marathon.', known:'5K 17:38 · Marathon 4h',
     perk:'Marathon engine: 5% faster on lap 2.', spd:3, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
     pal:{ h:'#6a4426', s:'#f2c6a2', t:'#0f6b72', n:'#3fd0d6', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#f2d21a' } },
-  { id:'singho', name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
+  { id:'singho', shouts:['GEL MAN!', 'SING HO!'], name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
     perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, jmp:2, bst:5, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
     pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
-  { id:'ronald', name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
+  { id:'ronald', shouts:['MR PUMA!', 'GO RONALD!'], name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
     perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1120, fx:{ soft:0.5 }, head:'capf',
     pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
-  { id:'ivan', name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
+  { id:'ivan', shouts:['COACH IVAN!', 'GO IVAN!'], name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
     perk:'PT power: higher top speed when you tap flat out.', spd:4, jmp:4, bst:2, target:1100, fx:{ cap:0.35 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
-  { id:'jeroen', name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
+  { id:'jeroen', shouts:['CHIEF!', 'GO JEROEN!'], name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, jmp:3, bst:4, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
-  { id:'draakie', name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
+  { id:'draakie', shouts:['GELLETJE!!', 'DRAAKIE!', 'JONY!', 'GELLETJE!!!', 'DRAAKIE!!'], name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
     perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, jmp:4, bst:3, target:1120, fx:{ fans:true },
     pal:{ h:'#ecc95a', s:'#f0c49c', t:'#2f9a3a', n:'#8fe07a', p:'#1f6a2a', k:'#f4f4f4' } },
 ];
@@ -678,6 +678,15 @@ function drawScene(camX, time, sunset){
 }
 
 /* ---------- text ---------- */
+/* speech balloon from the fans; drawn in world space, text kept readable by txt() */
+function shoutBubble(x, y, text, ph){
+  ctx.font = '8px "Press Start 2P", ui-monospace, monospace';
+  const w = Math.ceil(ctx.measureText(text).width) + 8, h = 13;
+  x = Math.round(x); y = Math.round(y + Math.sin(ph * 6) * 1);
+  ctx.fillStyle = INK; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, h + 2); ctx.fillRect(x - 3, y + h + 1, 5, 2); ctx.fillRect(x - 2, y + h + 3, 3, 2);
+  ctx.fillStyle = '#fffbe9'; ctx.fillRect(x - w / 2, y, w, h); ctx.fillRect(x - 2, y + h, 3, 2); ctx.fillRect(x - 1, y + h + 2, 1, 2);
+  txt(text, x, y + 3, INK, 'center', 8, null);
+}
 function txt(s, x, y, col = '#fff', align = 'left', size = 8, shadow = INK){
   ctx.font = size + 'px "Press Start 2P", ui-monospace, monospace';
   ctx.textBaseline = 'top';
@@ -761,7 +770,9 @@ function newRace(){
   const crowds = [];
   for (let d = 420; d < TOTAL - 200; d += 380 + rng() * 260){
     if (nearBuilding(d)) continue;
-    crowds.push({ d, n: 3 + Math.floor(rng() * 3), seed: Math.floor(rng() * 1000) });
+    const pool = me.id === 'draakie' ? me.shouts
+      : ['HUP HUP!', 'GO GO GO!', 'LEKKER BEZIG!', 'ALLEZ!', 'KOM OP!', 'GO WOLFPACK!', 'GO ' + me.name + '!'].concat(me.shouts, me.shouts);
+    crowds.push({ d, n: 3 + Math.floor(rng() * 3), seed: Math.floor(rng() * 1000), shout: pool[Math.floor(rng() * pool.length)] });
     {   // every runner can catch hearts; Jordi gets the big boost
       for (let k = 0; k < 3; k++){
         const hd = d - 6 + k * 14;
@@ -957,6 +968,8 @@ function render(){
       drawRunner(IMG.fans[(c.seed + k) % IMG.fans.length], Math.floor(t * 4 + k + c.seed) % 2 ? 'wave' : 'stand', x, PATH_TOP + 1 - ((k + c.seed) % 2));
     }
     const cx = c.d * PXM - camX;
+    const near = (c.d - r.d) * PXM;
+    if (c.shout && near > -50 && near < 190) shoutBubble(cx, PATH_TOP - 44 - ((c.seed >> 2) % 2) * 6, c.shout, t + c.seed);
     if (r.me.fx.fans && cx > -20 && cx < W + 20 && Math.floor(t * 8 + c.seed) % 5 === 0){ ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(cx + ((c.seed + Math.floor(t * 8)) % 5) * 6 - 12), PATH_TOP - 15, 2, 2); }
     if (cx > -20 && cx < W + 20){   // little hearts popping up over the fans
       const ph = (t * 1.6 + c.seed) % 1;
