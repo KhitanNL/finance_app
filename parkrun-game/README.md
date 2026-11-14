@@ -3,9 +3,9 @@
 An 8-bit mobile web game for the Zuiderpark Wolf group. Pick a runner card (Julian, Jordi, Luca, Sing Ho, Ronald, Ivan, Jeroen or Jony (Draakie)), then run two laps of 2.5K
 (5K total) that start and finish at the shimmering hall in Zuiderpark.
 
-- Tap **RUN** as fast as you can. Faster tapping means a faster 5K time.
+- Tap **anywhere on the screen** as fast as you can to run. Faster tapping means a faster 5K time.
 - Runner stats: FAST twitch (taps push harder), SLOW twitch (speed fades slower), JMP, BST and LOVE (bigger boost from fans' hearts).
-- **Hold RUN** (or tap the game screen) to grab boosts floating above the path:
+- **Hold** your finger down to jump and grab boosts floating above the path:
   beetroot (faster for a while), Nomio shots (instant surge) and gels (every tap counts more).
 - Jump over puddles and geese, they slow you down.
 - Your PB per runner is saved on your phone.

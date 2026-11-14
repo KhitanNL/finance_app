@@ -54,6 +54,11 @@ body{
 }
 #app[data-screen="race"] #stage{flex:1 1 auto}
 #app[data-screen="race"] #panel{flex:0 0 auto;overflow:hidden;padding-block:14px 16px}
+#app[data-screen="race"]{touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}
+.tapzone{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px;border:3px dashed var(--deck-line);text-align:center}
+.tapzone b{font-family:var(--f-display);font-weight:400;font-size:13px;color:var(--paper);letter-spacing:.06em}
+.tapzone span{font-family:var(--f-display);font-size:10px;color:var(--hivis);letter-spacing:.06em}
+#app.tapped .tapzone{border-color:var(--chrome-2)}
 section{display:flex;flex-direction:column;gap:14px}
 
 .eyebrow{font-family:var(--f-display);font-size:9px;letter-spacing:.14em;color:var(--hivis);margin:0}
@@ -233,10 +238,8 @@ p{margin:0;max-width:60ch}
     </section>
 
     <section id="scr-race" hidden>
-      <div class="controls">
-        <button class="pad" id="runPad" type="button" aria-label="Run: tap fast to run, hold to jump">RUN<small>tap to run · hold to jump</small></button>
-      </div>
-      <p class="hint">Tap RUN to run, hold it to jump. Keyboard: tap ← or → to run, hold to jump (SPACE also jumps)</p>
+      <div class="tapzone" aria-hidden="true"><b>TAP ANYWHERE TO RUN</b><span>HOLD TO JUMP</span></div>
+      <p class="hint">Keyboard: tap ← or → to run, hold to jump (SPACE also jumps)</p>
     </section>
 
     <section id="scr-result" hidden>
@@ -1285,17 +1288,19 @@ const HOLD_MS = 190;
 const holds = new Map();
 function holdStart(id){ holdEnd(id); holds.set(id, setTimeout(() => { holds.delete(id); tapJump(); }, HOLD_MS)); }
 function holdEnd(id){ const t = holds.get(id); if (t){ clearTimeout(t); holds.delete(id); } }
+// The whole screen is the button during a race (like Flappy Bird). EXIT and SOUND keep working.
 (() => {
-  const el = $('#runPad');
-  el.addEventListener('pointerdown', e => {
+  const root = $('#app');
+  root.addEventListener('pointerdown', e => {
+    if (G.screen !== 'race' || e.target.closest('.hud-btn')) return;
     e.preventDefault(); audioInit(); tapRun(); holdStart('p' + e.pointerId);
-    el.classList.add('down'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('down'), 70);
+    root.classList.add('tapped'); clearTimeout(root._t); root._t = setTimeout(() => root.classList.remove('tapped'), 70);
   });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => el.addEventListener(ev, e => holdEnd('p' + e.pointerId)));
-  el.addEventListener('contextmenu', e => e.preventDefault());
-  el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); if (!e.repeat) tapRun(); } });
+  ['pointerup', 'pointercancel'].forEach(ev => root.addEventListener(ev, e => holdEnd('p' + e.pointerId)));
+  root.addEventListener('contextmenu', e => { if (G.screen === 'race') e.preventDefault(); });
+  root.addEventListener('touchstart', e => { if (G.screen === 'race' && !e.target.closest('.hud-btn')) e.preventDefault(); }, { passive:false });
 })();
-cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
+
 window.addEventListener('keydown', e => {
   if (G.screen !== 'race' || e.repeat) return;
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun(); holdStart('k' + e.key.toLowerCase()); }
