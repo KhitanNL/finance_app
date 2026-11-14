@@ -90,6 +90,8 @@ p{margin:0;max-width:60ch}
   transform-style:preserve-3d;will-change:transform;backface-visibility:hidden;
   transition:transform .5s cubic-bezier(.2,.8,.2,1),filter .4s;
   -webkit-box-reflect:below 2px linear-gradient(transparent 55%,rgba(255,255,255,.32))}
+#cards .cover .emo{width:100%;height:100%;display:grid;place-items:center;font-size:118px;line-height:1;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;background:radial-gradient(circle at 50% 46%,#2f7a3c 0%,#123020 55%,#06080c 100%)}
 #cards .cover img{width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block;pointer-events:none;-webkit-user-drag:none}
 #cards.dragging .cover{transition:none}
 .flow-caption{position:absolute;left:0;right:0;bottom:12px;text-align:center;pointer-events:none}
@@ -130,6 +132,8 @@ p{margin:0;max-width:60ch}
 .card .known{font-family:var(--f-display);font-size:7px;line-height:1.5;color:var(--ink);background:#efe4cc;padding:4px 5px;border:2px solid var(--ink)}
 .card .perk{font-size:17px;line-height:1.05;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:6px;min-height:36px}
 .res-who{display:flex;align-items:center;gap:12px}
+.res-who .emo{width:64px;height:64px;flex:0 0 64px;display:grid;place-items:center;font-size:40px;line-height:1;border:3px solid var(--ink);box-shadow:0 0 0 3px var(--hivis);
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;background:radial-gradient(circle at 50% 46%,#2f7a3c 0%,#123020 60%,#06080c 100%)}
 .res-who img{width:64px;height:64px;object-fit:cover;border:3px solid var(--ink);box-shadow:0 0 0 3px var(--hivis)}
 .card-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px}
 .card h3{font-size:12px;line-height:1.4;min-height:17px}
@@ -258,7 +262,7 @@ p{margin:0;max-width:60ch}
     <section id="scr-result" hidden>
       <div class="res-head">
         <p class="eyebrow">PARKRUN ZUIDERPARK · 5K</p>
-        <div class="res-who"><img id="resPhoto" src="" alt=""><h2 id="resName">RUNNER</h2></div>
+        <div class="res-who"><img id="resPhoto" src="" alt=""><span class="emo" id="resEmoji" hidden aria-hidden="true"></span><h2 id="resName">RUNNER</h2></div>
         <div class="badges" id="badges"></div>
       </div>
       <div class="res-time" id="resTime">17:48</div>
@@ -335,7 +339,7 @@ function emojiCover(ch){
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 180, 196);
   return c.toDataURL('image/png');
 }
-RUNNERS.forEach(r => { if (r.emoji) r.photo = emojiCover(r.emoji); });
+// emoji runners are shown as text (iPhones do not draw colour emoji on a canvas)
 // Secret runner: Jony (Draakie) is always last in RUNNERS and stays hidden until unlocked
 let secretUnlocked = !!store.get('draakie', false);
 const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
@@ -1223,7 +1227,7 @@ function renderCards(){
     const el = document.createElement('div');
     el.className = 'cover'; el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
-    el.innerHTML = `<img src="${r.photo}" alt="" draggable="false">`;
+    el.innerHTML = r.emoji ? `<div class="emo" aria-hidden="true">${r.emoji}</div>` : `<img src="${r.photo}" alt="" draggable="false">`;
     wrap.appendChild(el);
   });
   $('#dots').innerHTML = flowOrder().map(() => '<i></i>').join('');
@@ -1341,7 +1345,8 @@ function showResults(){
   const isPB = !prev || myT < prev;
   if (isPB){ book[me.id] = Math.round(myT); store.set(pbKey(), book); if (!isRace()) pbs = book; }
   $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
-  $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full;
+  $('#resPhoto').hidden = !!me.emoji; $('#resEmoji').hidden = !me.emoji;
+  if (me.emoji) $('#resEmoji').textContent = me.emoji; else { $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full; }
   $('#resTime').textContent = fmt(myT);
   const badges = [];
   badges.push([r.mode === 'race' ? 'RACE MODE' : 'CLASSIC', '']);
