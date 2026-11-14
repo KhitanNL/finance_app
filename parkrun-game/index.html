@@ -282,6 +282,9 @@ const RUNNERS = [
   { id:'ronald', name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
     perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1120, fx:{ soft:0.5 }, head:'capf',
     pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
+  { id:'ivan', name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
+    perk:'PT power: higher top speed when you tap flat out.', spd:4, jmp:4, bst:2, target:1100, fx:{ cap:0.35 }, head:'long',
+    pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
 ];
 let pbs = store.get('pbs', {});
 
@@ -318,6 +321,7 @@ function pcirc(g, cx, cy, r, col){
 const HEADS = {
   std:   ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."],
   curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
+  long:  ["...hhhhh....","..hhhhhhh...","..hhssss....","..hhssos....","..hhrrrr....","..h..rr....."],
   capf:  ["....HHHH....","...HHHHHHH..","...hssss....","...hssos....","....ssss....",".....ss....."],
   cap:   ["....hhhh....",".hhhhhhhh...","...hssss....","...hssos....","....ssss....",".....ss....."],
 };
@@ -722,7 +726,7 @@ function tapRun(){
   const now = performance.now();
   if (now - race.lastTap < 45) return;
   race.lastTap = now;
-  const cap = CAP + (race.boost.gel > 0 ? 0.5 : 0);
+  const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.5 : 0);
   const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1) * (race.me.fx.inc || 1);
   race.e = Math.min(cap, race.e + inc);
   race.taps++; race.tapTimes.push(now);
@@ -777,7 +781,7 @@ function update(dt){
       it.got = true; r.got++;
       const bm = boostMult();
       if (it.type === 'beet') r.boost.beet = 6 * bm;
-      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + 0.5, r.e + 0.8); }
+      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
@@ -896,7 +900,7 @@ function render(){
     if (x < -14 || x > W + 14) continue;
     const done = v.d >= TOTAL + 20;
     drawRunner(SPR[v.i], done ? 'wave' : FRAMES[Math.floor(v.anim) % 4], x, FOOT_RIV);
-    if (x - lastLabel > 36){ txt(RUNNERS[v.i].name.slice(0, 4), Math.round(x), FOOT_RIV - 30, '#f6efe1', 'center', 8); lastLabel = x; }
+    if (x - lastLabel > 42){ txt(RUNNERS[v.i].name.slice(0, 4), Math.round(x), FOOT_RIV - 30, '#f6efe1', 'center', 8); lastLabel = x; }
   }
   // you
   const fr = r.countdown > 0 ? 'stand' : r.air ? 'jump' : r.v < 0.4 ? 'wave' : FRAMES[Math.floor(r.anim) % 4];
@@ -944,7 +948,7 @@ function drawHUD(PX){
   txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
   txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
   // energy bar
-  const cap = CAP + (r.boost.gel > 0 ? 0.5 : 0);
+  const cap = CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 : 0);
   const fr = Math.max(0, Math.min(1, r.e / cap));
   ctx.fillStyle = INK; ctx.fillRect(4, 54, 98, 8);
   ctx.fillStyle = '#3a3440'; ctx.fillRect(5, 55, 96, 6);
