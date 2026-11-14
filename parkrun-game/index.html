@@ -256,6 +256,9 @@ const RUNNERS = [
   { id:'singho', name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
     perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, jmp:2, bst:5, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
     pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
+  { id:'ronald', name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
+    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1120, fx:{ soft:0.5 }, head:'capf',
+    pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
 ];
 let pbs = store.get('pbs', {});
 
@@ -292,6 +295,7 @@ function pcirc(g, cx, cy, r, col){
 const HEADS = {
   std:   ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."],
   curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
+  capf:  ["....HHHH....","...HHHHHHH..","...hssss....","...hssos....","....ssss....",".....ss....."],
   cap:   ["....hhhh....",".hhhhhhhh...","...hssss....","...hssos....","....ssss....",".....ss....."],
 };
 const HEAD = HEADS.std;
@@ -761,8 +765,9 @@ function update(dt){
     if (o.hit || Math.abs(o.d - r.d) * PXM > 6) continue;
     if (foot < (o.type === 'goose' ? 10 : 3)){
       o.hit = true;
-      if (o.type === 'puddle'){ r.slow = 1.0; r.e *= 0.65; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
-      else { r.slow = 1.2; r.e *= 0.5; r.stumble = 0.6; msg('HONK! GOOSE!', '#f4f2ea'); }
+      const soft = r.me.fx.soft || 1;
+      if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
+      else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
       sfx('hit'); try { navigator.vibrate && navigator.vibrate([30, 30, 30]); } catch(e){}
     }
   }
