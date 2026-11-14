@@ -302,7 +302,24 @@ const RUNNERS = [
   { id:'jeroen', name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, jmp:3, bst:3, target:1230, fx:{ fastStart:true, inc:0.92 }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
+  { id:'draakie', name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
+    perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, jmp:4, bst:3, target:1120, fx:{ fans:true }, head:'dragon',
+    pal:{ d:'#3fae3a', q:'#141218', y:'#ffe14a', s:'#d6a076', t:'#1f5a2a', n:'#7fd06a', p:'#1b1420', k:'#ffe14a' } },
 ];
+// Runners without a photo get a cover drawn from their emoji (Draakie: the dragon)
+function emojiCover(ch){
+  const c = mk(360, 360), g = c.getContext('2d');
+  const gr = g.createRadialGradient(180, 165, 10, 180, 180, 250);
+  gr.addColorStop(0, '#2f7a3c'); gr.addColorStop(0.55, '#123020'); gr.addColorStop(1, '#06080c');
+  g.fillStyle = gr; g.fillRect(0, 0, 360, 360);
+  g.font = '230px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 180, 196);
+  return c.toDataURL('image/png');
+}
+RUNNERS.forEach(r => { if (r.emoji) r.photo = emojiCover(r.emoji); });
+// Secret runner: Jony (Draakie) is always last in RUNNERS and stays hidden until unlocked
+let secretUnlocked = !!store.get('draakie', false);
+const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
 let pbs = store.get('pbs2', {});   // v2 balance: old easy-mode PBs are not carried over
 
 /* ---------- pixel helpers ---------- */
@@ -338,6 +355,7 @@ function pcirc(g, cx, cy, r, col){
 const HEADS = {
   std:   ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."],
   curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
+  dragon: ["...d.d.d....","..dddddd....","..ddqqqqd...","..ddqyqy....","..ddqqqq....","....qq......"],
   beard: ["....hhhh....","...hhhhhh...","...hssss....","...hssos....","....rrrr....",".....rr....."],
   long:  ["...hhhhh....","..hhhhhhh...","..hhssss....","..hhssos....","..hhrrrr....","..h..rr....."],
   capf:  ["....HHHH....","...HHHHHHH..","...hssss....","...hssos....","....ssss....",".....ss....."],
@@ -718,7 +736,7 @@ function setMuteLabel(){ const b = $('#muteBtn'); b.textContent = AU.muted ? 'SO
 
 /* ---------- game state ---------- */
 const G = { screen:'title', sel:store.get('sel', 0), time:0 };
-if (!(G.sel >= 0 && G.sel < RUNNERS.length)) G.sel = 0;
+if (!(G.sel >= 0 && G.sel < visibleCount())) G.sel = 0;
 let SPR = [];
 function rebuildRunnerSprites(){ SPR = RUNNERS.map(runnerSprites); }
 let race = null;
@@ -752,7 +770,7 @@ function newRace(){
     if (nearBuilding(d) || items.some(i => Math.abs(i.d - d) < 40) || crowds.some(c => Math.abs(c.d - d) < 50)) continue;
     obstacles.push({ d, type: rng() < 0.5 ? 'puddle' : 'goose', hit:false });
   }
-  const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel).map(i => ({
+  const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel && i < visibleCount()).map(i => ({
     i, T: RUNNERS[i].target + (rng() - 0.5) * 60, ph: rng() * 6, d: 0, lane: 0, anim: rng() * 4
   }));
   race = {
@@ -848,6 +866,10 @@ function update(dt){
       sfx('hit'); try { navigator.vibrate && navigator.vibrate([30, 30, 30]); } catch(e){}
     }
   }
+  // influencer: fans film you as you pass
+  if (r.me.fx.fans) for (const c of r.crowds){
+    if (!c.filmed && r.d >= c.d){ c.filmed = true; r.boost.heart = 2.5 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.15); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
+  }
   // laps and finish
   if (r.lap === 1 && r.d >= LAP){ r.lap = 2; r.split = r.vt; msg('LAP 2! ' + fmt(r.vt), '#e6f02a'); sfx('lap'); }
   if (!r.finished && r.d >= TOTAL){
@@ -886,6 +908,7 @@ function render(){
     const camX = -W / 2 + Math.sin(t * 0.25) * 24 + 10;
     drawScene(camX, t, true);
     RUNNERS.forEach((r, i) => {
+      if (i >= visibleCount()) return;
       const x = -58 + i * 26 - camX;
       const f = FRAMES[Math.floor(t * 5 + i * 1.3) % 4];
       shadow(x, FOOT_ME, 10);
@@ -900,7 +923,7 @@ function render(){
     const camX = -W / 2 + 20;
     drawScene(camX, t, false);
     RUNNERS.forEach((r, i) => {
-      if (i === G.sel) return;
+      if (i === G.sel || i >= visibleCount()) return;
       const k = i < G.sel ? i : i - 1;
       const x = -66 + k * 22 - camX;
       drawRunner(SPR[i], Math.floor(t * 2 + i) % 3 === 0 ? 'wave' : 'stand', x, FOOT_RIV);
@@ -930,6 +953,7 @@ function render(){
       drawRunner(IMG.fans[(c.seed + k) % IMG.fans.length], Math.floor(t * 4 + k + c.seed) % 2 ? 'wave' : 'stand', x, PATH_TOP + 1 - ((k + c.seed) % 2));
     }
     const cx = c.d * PXM - camX;
+    if (r.me.fx.fans && cx > -20 && cx < W + 20 && Math.floor(t * 8 + c.seed) % 5 === 0){ ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(cx + ((c.seed + Math.floor(t * 8)) % 5) * 6 - 12), PATH_TOP - 15, 2, 2); }
     if (r.me.fx.hearts && cx > -20 && cx < W + 20){   // little hearts popping up over Jordi's fans
       const ph = (t * 1.6 + c.seed) % 1;
       ctx.drawImage(IMG.heart, Math.round(cx - 3 + Math.sin(t * 3 + c.seed) * 6), Math.round(PATH_TOP - 24 - ph * 14));
@@ -1081,13 +1105,14 @@ function legend(){
 function renderCards(){
   const wrap = $('#cards'); wrap.innerHTML = '';
   RUNNERS.forEach((r, i) => {
+    if (i >= visibleCount()) return;
     const el = document.createElement('div');
     el.className = 'cover'; el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
     el.innerHTML = `<img src="${r.photo}" alt="" draggable="false">`;
     wrap.appendChild(el);
   });
-  $('#dots').innerHTML = RUNNERS.map(() => '<i></i>').join('');
+  $('#dots').innerHTML = RUNNERS.slice(0, visibleCount()).map(() => '<i></i>').join('');
   flowPos = G.sel; layoutFlow(); renderInfo();
 }
 function renderInfo(){
@@ -1116,8 +1141,24 @@ function layoutFlow(){
   const k = Math.round(flowPos);
   document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i === k));
 }
+/* Secret: on the first runner, press < five times to unlock Jony (Draakie) */
+let secretTaps = 0;
+function prevPress(){
+  if (!secretUnlocked && G.sel === 0){
+    secretTaps++;
+    if (secretTaps >= 5){ unlockSecret(); return; }
+    if (secretTaps >= 3) sfx('beep');
+  } else secretTaps = 0;
+  flowTo(G.sel - 1);
+}
+function unlockSecret(){
+  secretUnlocked = true; secretTaps = 0; store.set('draakie', true);
+  sfx('finish'); try { navigator.vibrate && navigator.vibrate([40, 40, 80]); } catch(e){}
+  renderCards(); flowTo(RUNNERS.length - 1);
+  $('#flowTag').textContent = 'SECRET RUNNER UNLOCKED! Gelletje!!!';
+}
 function flowTo(i){
-  i = Math.max(0, Math.min(RUNNERS.length - 1, i));
+  i = Math.max(0, Math.min(visibleCount() - 1, i));
   flowPos = i; layoutFlow(); choose(i);
 }
 (() => {
@@ -1135,7 +1176,7 @@ function flowTo(i){
     if (moved > 6) wrap.classList.add('dragging');
     const now = performance.now();
     vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
-    flowPos = Math.max(-0.4, Math.min(RUNNERS.length - 0.6, sp - dx / 90));
+    flowPos = Math.max(-0.4, Math.min(visibleCount() - 0.6, sp - dx / 90));
     layoutFlow();
   });
   const end = () => {
@@ -1151,8 +1192,8 @@ function flowTo(i){
   wrap.addEventListener('pointerup', end);
   wrap.addEventListener('pointercancel', end);
   wrap.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft'){ e.preventDefault(); flowTo(G.sel - 1); }
-    if (e.key === 'ArrowRight'){ e.preventDefault(); flowTo(G.sel + 1); }
+    if (e.key === 'ArrowLeft'){ e.preventDefault(); prevPress(); }
+    if (e.key === 'ArrowRight'){ e.preventDefault(); secretTaps = 0; flowTo(G.sel + 1); }
     if (e.key === 'Enter'){ e.preventDefault(); startRace(); }
   });
   wrap.addEventListener('wheel', e => {
@@ -1160,8 +1201,8 @@ function flowTo(i){
     wrap._wl = true; setTimeout(() => wrap._wl = false, 350);
     flowTo(G.sel + Math.sign(e.deltaX));
   }, { passive:true });
-  $('#prevBtn').addEventListener('click', () => flowTo(G.sel - 1));
-  $('#nextBtn').addEventListener('click', () => flowTo(G.sel + 1));
+  $('#prevBtn').addEventListener('click', prevPress);
+  $('#nextBtn').addEventListener('click', () => { secretTaps = 0; flowTo(G.sel + 1); });
 })();
 function choose(i, rerender){
   if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
@@ -1191,13 +1232,14 @@ function showResults(){
   else if (myT < 1080) badges.push(['SUB 18!', '']);
   if (pos === 1) badges.push(['PACK LEADER', '']);
   if (r.me.fx.hearts && r.hearts >= 12) badges.push(['CROWD FAVOURITE', '']);
+  if (r.me.fx.fans && r.hearts >= 6) badges.push(['GELLETJE!!!', '']);
   if (r.obstacles.every(o => !o.hit)) badges.push(['CLEAN RUN', '']);
   $('#badges').innerHTML = badges.map(([b, c]) => `<span class="badge ${c}">${b}</span>`).join('') || '<span class="badge">FINISHED</span>';
   const lap2 = myT - r.split;
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(r.me.fx.hearts ? [['Hearts', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(r.me.fx.hearts ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
