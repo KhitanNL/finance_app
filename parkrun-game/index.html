@@ -263,10 +263,10 @@ const $ = s => document.querySelector(s);
 const INK = '#1b1420';
 
 /* ---------- tuning ---------- */
-const TS = 20;          // race seconds per real second (about 55 s of tapping per 5K)
+const TS = 15;          // race seconds per real second
 const PXM = 1.2;        // world pixels per metre
 const LAP = 2500, TOTAL = 5000;
-const INC = 0.254, DRAG = 0.60, CAP = 3.0, BASEV = 1.8;   // tap energy model, speed = BASEV + energy (m/s)
+const INC = 0.25, DRAG = 0.60, CAP = 3.6, BASEV = 1.8;   // tap energy model, speed = BASEV + energy (m/s)
 const GRAV = 560, JV = 188;
 const H = 192, PATH_TOP = 150, PATH_BOT = 167, FOOT_ME = 163, FOOT_RIV = 157;
 let W = 320, CH = 192, OFF = 0, FLIP = false;   // FLIP: world is mirrored so the pack runs clockwise (to the left)   // canvas height grows on tall screens; extra rows become sky
@@ -282,25 +282,25 @@ const store = {
 /* ---------- runners ---------- */
 const RUNNERS = [
   { id:'julian', name:'JULIAN', full:'Julian Bond', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
-    perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1070, fx:{ inc:1.02 },
+    perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
   { id:'jordi', name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
-    perk:'Crowd favourite: grabs hearts from cheering fans for a small speed kick.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.97, hearts:true },
+    perk:'Crowd favourite: grabs hearts from cheering fans for a speed kick. Also fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
     pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
   { id:'luca', name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 17:38 5K and 4h marathon.', known:'5K 17:38 · Marathon 4h',
-    perk:'Marathon engine: 2% faster on lap 2. Zuiderpark is flat, sorry.', spd:3, jmp:3, bst:3, target:1058, fx:{ lap2:1.02 }, belt:true, head:'curly',
+    perk:'Marathon engine: 5% faster on lap 2.', spd:3, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
     pal:{ h:'#6a4426', s:'#f2c6a2', t:'#0f6b72', n:'#3fd0d6', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#f2d21a' } },
   { id:'singho', name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
-    perk:'Gel collector: gels last 25% longer, starts with a small one.', spd:3, jmp:2, bst:4, target:1110, fx:{ gel:1.25, startGel:true }, belt:true, head:'cap',
+    perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, jmp:2, bst:5, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
     pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
   { id:'ronald', name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
-    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1140, fx:{ soft:0.5 }, head:'capf',
+    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1120, fx:{ soft:0.5 }, head:'capf',
     pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
   { id:'ivan', name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
-    perk:'PT power: slightly higher top speed when you tap flat out.', spd:4, jmp:3, bst:2, target:1090, fx:{ cap:0.12 }, head:'long',
+    perk:'PT power: higher top speed when you tap flat out.', spd:4, jmp:4, bst:2, target:1100, fx:{ cap:0.35 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
   { id:'jeroen', name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
-    perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, jmp:3, bst:3, target:1230, fx:{ fastStart:true, inc:0.92 }, head:'beard',
+    perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, jmp:3, bst:4, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
   { id:'draakie', name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
     perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, jmp:4, bst:3, target:1120, fx:{ fans:true },
@@ -320,7 +320,7 @@ RUNNERS.forEach(r => { if (r.emoji) r.photo = emojiCover(r.emoji); });
 // Secret runner: Jony (Draakie) is always last in RUNNERS and stays hidden until unlocked
 let secretUnlocked = !!store.get('draakie', false);
 const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
-let pbs = store.get('pbs2', {});   // v2 balance: old easy-mode PBs are not carried over
+let pbs = store.get('pbs', {});
 
 /* ---------- pixel helpers ---------- */
 function mk(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -748,7 +748,7 @@ function newRace(){
   const me = RUNNERS[G.sel];
   const rng = mulberry((Date.now() & 0xffffffff) ^ 0x5eed);
   const items = [], obstacles = [];
-  for (let d = 200; d < TOTAL - 120; d += 270 + rng() * 140){
+  for (let d = 180; d < TOTAL - 120; d += 170 + rng() * 120){
     if (nearBuilding(d)) continue;
     const r = rng();
     items.push({ d, type: r < 0.4 ? 'beet' : r < 0.72 ? 'gel' : 'nomio', h: 25 + Math.floor(rng() * 14), got:false, ph:rng() * 6 });
@@ -780,7 +780,7 @@ function newRace(){
   };
 }
 
-function boostMult(){ return 1 + 0.1 * (race.me.bst - 3); }
+function boostMult(){ return 1 + 0.15 * (race.me.bst - 3); }
 function msg(s, col){ race.msgs.push({ s, col, t:0 }); }
 function burst(x, y, col, n, spread = 40){
   for (let i = 0; i < n; i++) race.parts.push({ x, y, vx:(Math.random() - 0.5) * spread, vy:-Math.random() * spread, life:0.5 + Math.random() * 0.4, col });
@@ -791,8 +791,8 @@ function tapRun(){
   const now = performance.now();
   if (now - race.lastTap < 45) return;
   race.lastTap = now;
-  const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.3 : 0);
-  const inc = INC * (1 + 0.03 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.08 : 1) * (race.me.fx.inc || 1);
+  const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.5 : 0);
+  const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1) * (race.me.fx.inc || 1);
   race.e = Math.min(cap, race.e + inc);
   race.taps++; race.tapTimes.push(now);
   sfx('tap');
@@ -813,19 +813,19 @@ function update(dt){
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
     if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = CAP + (r.me.fx.cap || 0); msg('EXECUTIVE START!', '#7fb2ff'); }
-      if (r.me.fx.startGel){ r.boost.gel = 2.5 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
+      if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
   r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
-  const drag = DRAG * (r.boost.gel > 0 ? 0.92 : 1) * (r.me.fx.drag || 1);
+  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1) * (r.me.fx.drag || 1);
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
-  if (r.boost.beet > 0) mult *= 1.04;
-  if (r.boost.nomio > 0) mult *= 1.07;
+  if (r.boost.beet > 0) mult *= 1.08;
+  if (r.boost.nomio > 0) mult *= 1.15;
   if (r.slow > 0) mult *= 0.55;
-  if (r.boost.heart > 0) mult *= 1.03;
+  if (r.boost.heart > 0) mult *= 1.1;
   if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
   r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
   const prevD = r.d;
@@ -848,9 +848,9 @@ function update(dt){
       it.got = true; r.got++;
       const bm = boostMult();
       if (it.type === 'beet') r.boost.beet = 6 * bm;
-      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.3, r.e + 0.4); }
+      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
-      if (it.type === 'heart'){ r.boost.heart = 2.5 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.15); r.hearts++; }
+      if (it.type === 'heart'){ r.boost.heart = 3 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; }
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
       sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
@@ -868,7 +868,7 @@ function update(dt){
   }
   // influencer: fans film you as you pass
   if (r.me.fx.fans) for (const c of r.crowds){
-    if (!c.filmed && r.d >= c.d){ c.filmed = true; r.boost.heart = 2.5 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.15); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
+    if (!c.filmed && r.d >= c.d){ c.filmed = true; r.boost.heart = 3 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
   }
   // laps and finish
   if (r.lap === 1 && r.d >= LAP){ r.lap = 2; r.split = r.vt; msg('LAP 2! ' + fmt(r.vt), '#e6f02a'); sfx('lap'); }
@@ -1034,7 +1034,7 @@ function drawHUD(PX){
   txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
   txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
   // energy bar
-  const cap = CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.3 : 0);
+  const cap = CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 : 0);
   const fr = Math.max(0, Math.min(1, r.e / cap));
   ctx.fillStyle = INK; ctx.fillRect(4, 54, 98, 8);
   ctx.fillStyle = '#3a3440'; ctx.fillRect(5, 55, 96, 6);
@@ -1047,7 +1047,7 @@ function drawHUD(PX){
     if (r.boost[k] <= 0) continue;
     ctx.drawImage(IMG[k], bx, 66);
     ctx.fillStyle = INK; ctx.fillRect(bx, 77, 12, 3);
-    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'heart' ? 2.5 : k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
+    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'heart' ? 3 : k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
     bx += 16;
   }
   // right column
@@ -1222,7 +1222,7 @@ function showResults(){
   const pos = rows.findIndex(x => x.me) + 1;
   const prev = pbs[me.id];
   const isPB = !prev || myT < prev;
-  if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs2', pbs); }
+  if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
   $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
   $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full;
   $('#resTime').textContent = fmt(myT);
