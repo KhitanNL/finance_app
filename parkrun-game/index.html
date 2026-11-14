@@ -82,7 +82,23 @@ p{margin:0;max-width:60ch}
 @keyframes blink{to{visibility:hidden}}
 
 /* runner cards */
-#cards{position:relative;z-index:0;display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 10px 18px;margin-inline:-10px;scrollbar-width:thin}
+.flow{position:relative;margin-inline:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));overflow:hidden;padding-block:14px 0}
+#cards{position:relative;z-index:0;height:420px;perspective:900px;perspective-origin:50% 40%;touch-action:pan-y;cursor:grab;outline:none}
+#cards.dragging{cursor:grabbing}
+#cards .card{position:absolute;left:50%;top:8px;width:220px;margin-left:-110px;transform-style:preserve-3d;will-change:transform;
+  transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s,filter .3s;
+  -webkit-box-reflect:below 6px linear-gradient(transparent 78%,rgba(255,255,255,.22))}
+#cards.dragging .card{transition:none}
+.flow-nav{display:flex;align-items:center;justify-content:center;gap:16px}
+.flow-arrow{font-family:var(--f-display);font-size:12px;width:44px;height:40px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+.flow-arrow:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.flow-arrow:focus-visible,#cards:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
+.dots{display:flex;gap:8px}
+.dots i{width:10px;height:10px;border:2px solid var(--ink);background:var(--deck-line)}
+.dots i.on{background:var(--hivis)}
+#app[data-screen="select"] #stage{flex-basis:26%}
+#app[data-screen="select"] #panel{padding-block:12px 18px}
+#scr-select{gap:10px}
 .card{
   position:relative;flex:0 0 200px;scroll-snap-align:center;display:flex;flex-direction:column;
   background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);cursor:pointer;
@@ -90,11 +106,13 @@ p{margin:0;max-width:60ch}
 }
 .card::before{content:"";position:absolute;inset:-8px;background:var(--chrome);z-index:-1;opacity:0;border:3px solid var(--ink)}
 .card[aria-pressed="true"]{top:-6px}
+#cards .card::before{display:none}
+#cards .card[aria-pressed="true"]{top:8px;box-shadow:0 0 0 4px var(--hivis),0 0 0 7px var(--ink),0 12px 0 var(--ink)}
 .card[aria-pressed="true"]::before{opacity:1}
 .card-top{
-  position:relative;height:194px;overflow:hidden;border-bottom:3px solid var(--ink);background:var(--deck);border-top:8px solid var(--shirt);
+  position:relative;height:150px;overflow:hidden;border-bottom:3px solid var(--ink);background:var(--deck);border-top:8px solid var(--shirt);
 }
-.card-top img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.card-top img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 12%;display:block}
 .card-top canvas{position:absolute;right:6px;bottom:6px;width:42px;height:60px;image-rendering:pixelated;background:rgba(246,239,225,.9);border:2px solid var(--ink);padding:2px 4px}
 .card .known{font-family:var(--f-display);font-size:7px;line-height:1.5;color:var(--ink);background:#efe4cc;padding:4px 5px;border:2px solid var(--ink)}
 .card .perk{font-size:17px;line-height:1.05;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:6px;min-height:36px}
@@ -158,7 +176,7 @@ p{margin:0;max-width:60ch}
   #app[data-screen="race"] .hint{display:none}
   #app{position:relative}
 }
-@media (prefers-reduced-motion:reduce){.blink{animation:none}.card{transition:none}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}.card,#cards .card{transition:none}}
 </style>
 
 <div id="app" data-screen="title">
@@ -183,8 +201,13 @@ p{margin:0;max-width:60ch}
         <p class="eyebrow">STEP 1 OF 2</p>
         <h2>CHOOSE YOUR RUNNER</h2>
       </div>
-      <div id="cards" role="listbox" aria-label="Runners"></div>
-      <p class="muted">SPD makes every tap count more. JMP jumps higher. BST makes boosts last longer.</p>
+      <div class="flow"><div id="cards" role="listbox" aria-label="Runners, swipe to browse" tabindex="0"></div></div>
+      <div class="flow-nav">
+        <button class="flow-arrow" id="prevBtn" type="button" aria-label="Previous runner">&lt;</button>
+        <div class="dots" id="dots" aria-hidden="true"></div>
+        <button class="flow-arrow" id="nextBtn" type="button" aria-label="Next runner">&gt;</button>
+      </div>
+      <p class="muted">Swipe or tap a card. SPD: taps count more. JMP: higher jumps. BST: longer boosts.</p>
       <div class="row">
         <button class="btn alt" id="backBtn" type="button">BACK</button>
         <button class="btn hot" id="goBtn" type="button">TO THE START</button>
@@ -993,7 +1016,7 @@ function renderCards(){
   const wrap = $('#cards'); wrap.innerHTML = '';
   RUNNERS.forEach((r, i) => {
     const el = document.createElement('div');
-    el.className = 'card'; el.tabIndex = 0; el.setAttribute('role', 'option');
+    el.className = 'card'; el.setAttribute('role', 'option');
     el.setAttribute('aria-pressed', String(i === G.sel)); el.setAttribute('aria-selected', String(i === G.sel));
     el.style.setProperty('--shirt', r.pal.t);
     const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
@@ -1003,20 +1026,80 @@ function renderCards(){
       <p class="perk">${r.perk}</p>
       <div class="card-foot"><span class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</span></div></div>`;
     el.querySelector('canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
-    el.addEventListener('click', e => {
-      choose(i, true);
-    });
-    el.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === el){ e.preventDefault(); choose(i, true); } });
     wrap.appendChild(el);
   });
+  $('#dots').innerHTML = RUNNERS.map(() => '<i></i>').join('');
+  flowPos = G.sel; layoutFlow();
 }
+/* Cover Flow: centre card faces you, neighbours swing away in 3D */
+let flowPos = 0;
+function layoutFlow(){
+  const cards = document.querySelectorAll('#cards .card');
+  cards.forEach((c, i) => {
+    const o = i - flowPos, a = Math.abs(o), sg = Math.sign(o), n = Math.min(a, 1);
+    const x = sg * (n * 150 + Math.max(a - 1, 0) * 52);
+    const rot = -sg * n * 58;
+    const z = -n * 170 - Math.max(a - 1, 0) * 30;
+    c.style.transform = `translateX(${x}px) translateZ(${z}px) rotateY(${rot}deg)`;
+    c.style.zIndex = String(100 - Math.round(a * 10));
+    c.style.opacity = a > 3.2 ? '0' : '1';
+    c.style.filter = `brightness(${1 - n * 0.35})`;
+    c.style.pointerEvents = a > 3 ? 'none' : '';
+  });
+  const k = Math.round(flowPos);
+  document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i === k));
+}
+function flowTo(i){
+  i = Math.max(0, Math.min(RUNNERS.length - 1, i));
+  flowPos = i; layoutFlow(); choose(i);
+}
+(() => {
+  const wrap = $('#cards');
+  let sx = 0, sp = 0, moved = 0, down = false, lastX = 0, lastT = 0, vel = 0, tapCard = null;
+  wrap.addEventListener('pointerdown', e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    down = true; moved = 0; sx = lastX = e.clientX; sp = flowPos; lastT = performance.now(); vel = 0;
+    tapCard = e.target.closest('.card');
+    wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - sx; moved = Math.max(moved, Math.abs(dx));
+    if (moved > 6) wrap.classList.add('dragging');
+    const now = performance.now();
+    vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
+    flowPos = Math.max(-0.4, Math.min(RUNNERS.length - 0.6, sp - dx / 150));
+    layoutFlow();
+  });
+  const end = () => {
+    if (!down) return; down = false; wrap.classList.remove('dragging');
+    if (moved <= 6){
+      const cards = [...document.querySelectorAll('#cards .card')];
+      const i = cards.indexOf(tapCard);
+      flowTo(i >= 0 ? i : Math.round(flowPos));
+      return;
+    }
+    flowTo(Math.round(flowPos - vel * 2.2));
+  };
+  wrap.addEventListener('pointerup', end);
+  wrap.addEventListener('pointercancel', end);
+  wrap.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft'){ e.preventDefault(); flowTo(G.sel - 1); }
+    if (e.key === 'ArrowRight'){ e.preventDefault(); flowTo(G.sel + 1); }
+    if (e.key === 'Enter'){ e.preventDefault(); startRace(); }
+  });
+  wrap.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaX) < 20 || wrap._wl) return;
+    wrap._wl = true; setTimeout(() => wrap._wl = false, 350);
+    flowTo(G.sel + Math.sign(e.deltaX));
+  }, { passive:true });
+  $('#prevBtn').addEventListener('click', () => flowTo(G.sel - 1));
+  $('#nextBtn').addEventListener('click', () => flowTo(G.sel + 1));
+})();
 function choose(i, rerender){
   if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
   document.querySelectorAll('.card').forEach((c, k) => { c.setAttribute('aria-pressed', String(k === i)); c.setAttribute('aria-selected', String(k === i)); });
-  if (rerender){
-    const c = document.querySelectorAll('.card')[i];
-    if (c) c.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', inline:'center', block:'nearest' });
-  }
+  if (rerender){ flowPos = i; layoutFlow(); }
 }
 
 let lastShare = '';
