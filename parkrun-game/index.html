@@ -1,4 +1,4 @@
-<title>Wolf Pack Parkrun</title>
+<title>Wolfpack Run</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#24212a">
@@ -201,7 +201,7 @@ p{margin:0;max-width:60ch}
   <div id="panel">
     <section id="scr-title">
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
-      <h1>WOLF PACK <span class="chrome">PARKRUN</span></h1>
+      <h1>WOLFPACK <span class="chrome">RUN</span></h1>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
       <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
@@ -863,7 +863,7 @@ function render(){
     });
     ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
     txt('ZUIDERPARK', W / 2, 18 + Math.round(OFF * 0.4), '#f6efe1', 'center', 16);
-    txt('PARKRUN 5K', W / 2, 40 + Math.round(OFF * 0.4), '#e6f02a', 'center', 8);
+    txt('WOLFPACK RUN 5K', W / 2, 40 + Math.round(OFF * 0.4), '#e6f02a', 'center', 8);
     return;
   }
   if (G.screen === 'select'){
@@ -1158,7 +1158,7 @@ function showResults(){
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
-  lastShare = `Wolf Pack Parkrun, Zuiderpark 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps`;
+  lastShare = `Wolfpack Run, Zuiderpark 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\nwolfpackrun.app`;
   $('#copyMsg').textContent = '';
   show('result');
 }
