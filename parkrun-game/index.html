@@ -84,21 +84,25 @@ p{margin:0;max-width:60ch}
 /* runner cards */
 #cards{position:relative;z-index:0;display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:12px 10px 18px;margin-inline:-10px;scrollbar-width:thin}
 .card{
-  position:relative;flex:0 0 172px;scroll-snap-align:center;display:flex;flex-direction:column;
+  position:relative;flex:0 0 200px;scroll-snap-align:center;display:flex;flex-direction:column;
   background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);cursor:pointer;
-  transition:transform .12s steps(3);
+  transition:top .12s steps(3);top:0;
 }
 .card::before{content:"";position:absolute;inset:-8px;background:var(--chrome);z-index:-1;opacity:0;border:3px solid var(--ink)}
-.card[aria-pressed="true"]{transform:translateY(-6px)}
+.card[aria-pressed="true"]{top:-6px}
 .card[aria-pressed="true"]::before{opacity:1}
 .card-top{
-  position:relative;height:104px;display:grid;place-items:center;border-bottom:3px solid var(--ink);
-  background:linear-gradient(to bottom,var(--sky) 0 72%,var(--grass) 72% 100%);border-top:8px solid var(--shirt);
+  position:relative;height:194px;overflow:hidden;border-bottom:3px solid var(--ink);background:var(--deck);border-top:8px solid var(--shirt);
 }
-.card-top canvas{width:56px;height:80px;image-rendering:pixelated;margin-top:6px}
+.card-top img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.card-top canvas{position:absolute;right:6px;bottom:6px;width:42px;height:60px;image-rendering:pixelated;background:rgba(246,239,225,.9);border:2px solid var(--ink);padding:2px 4px}
+.card .known{font-family:var(--f-display);font-size:7px;line-height:1.5;color:var(--ink);background:#efe4cc;padding:4px 5px;border:2px solid var(--ink)}
+.card .perk{font-size:17px;line-height:1.05;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:6px;min-height:36px}
+.res-who{display:flex;align-items:center;gap:12px}
+.res-who img{width:64px;height:64px;object-fit:cover;border:3px solid var(--ink);box-shadow:0 0 0 3px var(--hivis)}
 .card-body{padding:10px 10px 12px;display:flex;flex-direction:column;gap:6px}
 .card h3{font-size:12px;line-height:1.4;min-height:17px}
-.card .tag{font-size:18px;line-height:1.05;min-height:38px;color:#4a4352}
+.card .tag{font-size:19px;line-height:1.05;min-height:20px;color:var(--ink)}
 .name-input{
   font-family:var(--f-display);font-size:11px;width:100%;box-sizing:border-box;padding:4px 5px;border:2px solid var(--ink);
   background:#fffbe9;color:var(--ink);text-transform:uppercase;
@@ -198,7 +202,7 @@ p{margin:0;max-width:60ch}
     <section id="scr-result" hidden>
       <div class="res-head">
         <p class="eyebrow">PARKRUN ZUIDERPARK · 5K</p>
-        <h2 id="resName">WOLF</h2>
+        <div class="res-who"><img id="resPhoto" src="" alt=""><h2 id="resName">RUNNER</h2></div>
         <div class="badges" id="badges"></div>
       </div>
       <div class="res-time" id="resTime">17:48</div>
@@ -239,22 +243,20 @@ const store = {
 };
 
 /* ---------- runners ---------- */
-const SKINS = ['#ffdbac','#f1c27d','#e0ac69','#c68642','#8d5524','#5c3a1e'];
 const RUNNERS = [
-  { id:'wolf',    name:'WOLF',    tag:'Sub-18 hunter. Knows every corner.', spd:4, jmp:3, bst:3, target:1068,
-    pal:{ h:'#3a2418', b:'#1b1420', t:'#f26a1b', n:'#f6efe1', p:'#1b1420', k:'#f4f4f4' } },
-  { id:'davy',    name:'DAVY',    tag:'The metronome. Never fades.',        spd:5, jmp:2, bst:3, target:1035,
-    pal:{ h:'#1b1420', b:'#e8c26a', t:'#2a2d3a', n:'#e6f02a', p:'#3a3f8f', k:'#ff5a3c' } },
-  { id:'mathijs', name:'MATHIJS', tag:'Big bounce. Loves a high gel.',      spd:3, jmp:4, bst:3, target:1080,
-    pal:{ h:'#b8862e', t:'#2f6fd6', n:'#f6efe1', p:'#1b1420', k:'#e6f02a' } },
-  { id:'jordi',   name:'JORDI',   tag:'Boost wizard. Beetroot believer.',   spd:3, jmp:2, bst:5, target:1110,
-    pal:{ h:'#2a1a12', b:'#d0458a', t:'#c8202e', n:'#f6efe1', p:'#2a2d3a', k:'#f4f4f4' } },
-  { id:'juan',    name:'JUAN',    tag:'Kick machine. Strong last 500.',     spd:4, jmp:4, bst:2, target:1050,
-    pal:{ h:'#1b1420', t:'#f2c400', n:'#2a2d3a', p:'#2a7a3a', k:'#2f6fd6' } },
+  { id:'julian', name:'JULIAN', full:'Julian Bond', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
+    perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
+    pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
+  { id:'jordi', name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
+    perk:'Stopwatch pacer: tap energy fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.9 },
+    pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
+  { id:'luca', name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 18:38 5K and 4h marathon.', known:'5K 18:38 · Marathon 4h',
+    perk:'Marathon engine: 5% faster on lap 2.', spd:3, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
+    pal:{ h:'#6a4426', s:'#f2c6a2', t:'#0f6b72', n:'#3fd0d6', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#f2d21a' } },
+  { id:'singho', name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
+    perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, jmp:2, bst:5, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
+    pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
 ];
-const looks = store.get('looks', {});
-RUNNERS.forEach(r => { r.skin = Number.isInteger(looks[r.id]) ? looks[r.id] : 2; });
-RUNNERS[0].name = String(store.get('name', 'WOLF')).slice(0, 10) || 'WOLF';
 let pbs = store.get('pbs', {});
 
 /* ---------- pixel helpers ---------- */
@@ -287,19 +289,25 @@ function pcirc(g, cx, cy, r, col){
 }
 
 /* ---------- sprite sheets (12 x 18, facing right) ---------- */
-const HEAD = ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."];
-const STAND = HEAD.concat(["....tttt....","...tttttt...","...tnnntt...","...stnnts...","...stttts...","....pppp....","....pp.pp...","....ss.ss...","....ss.ss...","....ss.ss...","...kkk.kkk..","............"]);
+const HEADS = {
+  std:   ["....hhhh....","...bbbbbh...","...hssss....","...hssos....","....ssss....",".....ss....."],
+  curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
+  cap:   ["....hhhh....",".hhhhhhhh...","...hssss....","...hssos....","....ssss....",".....ss....."],
+};
+const HEAD = HEADS.std;
+const STAND = HEAD.concat(["....tttt....","...tttttt...","...tnnntt...","...stnnts...","...stttts...","....GYGY....","....pp.pp...","....ss.ss...","....ss.ss...","....ss.ss...","...kkk.kkk..","............"]);
 const ARMS_A = ["....tttt....","...tttttss..","..stnnnt....",".s..tnnt....","....tttt...."];
 const ARMS_B = ["....tttt....","....ttttt...","....tnnts...","....tnnts...","....tttt...."];
 const ARMS_C = ["....tttt....","..sstttt....","....tnnnts..","....tnnt.s..","....tttt...."];
-const LEGS_A = ["....pppp....","...pp..pp...","..ss....ss..",".ss......ss.",".s........s.","kk........kk","............"];
-const LEGS_B = ["....pppp....",".....pss....","....sss.s...","...kk.ss....","......ss....","......kkk...","............"];
-const FA = HEAD.concat(ARMS_A, LEGS_A);
-const FB = HEAD.concat(ARMS_B, LEGS_B);
-const FC = HEAD.concat(ARMS_C, LEGS_A);
-const FJ = HEAD.concat(["....tttt.ss.","...tttttts..","..stnnnt....",".s..tnnt....","....tttt...."],
-  ["....pppp....","...ppppss...","..ss...ss...","..s.....kk..",".kk.........","............","............"]);
-const WAVE = HEAD.slice(0,5).concat([".....ss..s..","....tttt.s..","...tttttts..","...tnnntt...","...stnnt....","...stttt...."], STAND.slice(12));
+const LEGS_A = ["....GYGY....","...pp..pp...","..ss....ss..",".ss......ss.",".s........s.","kk........kk","............"];
+const LEGS_B = ["....GYGY....",".....pss....","....sss.s...","...kk.ss....","......ss....","......kkk...","............"];
+const B_STAND = STAND.slice(6);
+const B_A = ARMS_A.concat(LEGS_A);
+const B_B = ARMS_B.concat(LEGS_B);
+const B_C = ARMS_C.concat(LEGS_A);
+const B_J = [].concat(["....tttt.ss.","...tttttts..","..stnnnt....",".s..tnnt....","....tttt...."],
+  ["....GYGY....","...ppppss...","..ss...ss...","..s.....kk..",".kk.........","............","............"]);
+const B_WAVE = [".....ss..s..","....tttt.s..","...tttttts..","...tnnntt...","...stnnt....","...stttt...."].concat(STAND.slice(11));
 
 const ITEM_ROWS = {
   beet:  ["..g..g..","...gg...","..rrrr..",".rRrrrr.",".rRrrrr.",".rrrrrr.","..rrrr..","...rr..."],
@@ -326,16 +334,19 @@ function buildStatic(){
   IMG.clouds = [buildCloud(0,false), buildCloud(1,false)];
   IMG.cloudsSun = [buildCloud(0,true), buildCloud(1,true)];
   IMG.vol = [
-    runnerSprites({ pal:{ h:'#6b4a2a', t:'#e6f02a', n:'#f08a24', p:'#2a2d40', k:'#3a3a3a' }, skin:1 }),
-    runnerSprites({ pal:{ h:'#c9c4b8', t:'#e6f02a', n:'#f08a24', p:'#3a3f8f', k:'#f4f4f4' }, skin:3 }),
-    runnerSprites({ pal:{ h:'#2a1a12', t:'#e6f02a', n:'#f08a24', p:'#1b1420', k:'#d0458a' }, skin:0 }),
+    runnerSprites({ pal:{ h:'#6b4a2a', t:'#e6f02a', n:'#f08a24', p:'#2a2d40', k:'#3a3a3a', s:'#f1c27d' } }),
+    runnerSprites({ pal:{ h:'#c9c4b8', t:'#e6f02a', n:'#f08a24', p:'#3a3f8f', k:'#f4f4f4', s:'#c68642' } }),
+    runnerSprites({ pal:{ h:'#2a1a12', t:'#e6f02a', n:'#f08a24', p:'#1b1420', k:'#d0458a', s:'#ffdbac' } }),
   ];
   BUILDING = buildBuilding();
 }
 function runnerSprites(r){
-  const pal = Object.assign({ o:INK }, r.pal, { s:SKINS[r.skin] });
+  const pal = Object.assign({ o:INK }, r.pal);
   if (!pal.b) pal.b = pal.h;
-  return { stand:sprite(STAND,pal), a:sprite(FA,pal), b:sprite(FB,pal), c:sprite(FC,pal), jump:sprite(FJ,pal), wave:sprite(WAVE,pal) };
+  if (!r.belt){ pal.G = pal.p; pal.Y = pal.p; }
+  const hd = HEADS[r.head || 'std'];
+  const mkF = body => sprite(hd.concat(body), pal);
+  return { stand:mkF(B_STAND), a:mkF(B_A), b:mkF(B_B), c:mkF(B_C), jump:mkF(B_J), wave:sprite(hd.slice(0,5).concat(B_WAVE), pal) };
 }
 function buildTree(v){
   const c = mk(34, 44), g = c.getContext('2d');
@@ -685,7 +696,7 @@ function tapRun(){
   if (now - race.lastTap < 45) return;
   race.lastTap = now;
   const cap = CAP + (race.boost.gel > 0 ? 0.5 : 0);
-  const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1);
+  const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1) * (race.me.fx.inc || 1);
   race.e = Math.min(cap, race.e + inc);
   race.taps++; race.tapTimes.push(now);
   sfx('tap');
@@ -705,18 +716,19 @@ function update(dt){
     r.countdown -= dt;
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
-    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); }
+    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
   r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
-  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1);
+  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1) * (r.me.fx.drag || 1);
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
   if (r.boost.beet > 0) mult *= 1.08;
   if (r.boost.nomio > 0) mult *= 1.15;
   if (r.slow > 0) mult *= 0.55;
+  if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
   r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
   const prevD = r.d;
   r.d += r.v * TS * dt;
@@ -739,7 +751,7 @@ function update(dt){
       const bm = boostMult();
       if (it.type === 'beet') r.boost.beet = 6 * bm;
       if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + 0.5, r.e + 0.8); }
-      if (it.type === 'gel') r.boost.gel = 7 * bm;
+      if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
       sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
@@ -917,7 +929,7 @@ function drawHUD(PX){
     if (r.boost[k] <= 0) continue;
     ctx.drawImage(IMG[k], bx, 66);
     ctx.fillStyle = INK; ctx.fillRect(bx, 77, 12, 3);
-    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7) / boostMult()))), 1);
+    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
     bx += 16;
   }
   // right column
@@ -980,35 +992,18 @@ function renderCards(){
     el.setAttribute('aria-pressed', String(i === G.sel)); el.setAttribute('aria-selected', String(i === G.sel));
     el.style.setProperty('--shirt', r.pal.t);
     const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
-    const nameHtml = r.id === 'wolf'
-      ? `<input class="name-input" id="wolfName" maxlength="10" value="${r.name.replace(/"/g, '')}" aria-label="Your runner name">`
-      : `<h3>${r.name}</h3>`;
-    el.innerHTML = `<div class="card-top"><canvas width="14" height="20"></canvas></div>
-      <div class="card-body">${nameHtml}<p class="tag">${r.tag}</p>
+    el.innerHTML = `<div class="card-top"><img src="${r.photo}" alt="${r.full}" loading="lazy"><canvas width="14" height="20" aria-hidden="true"></canvas></div>
+      <div class="card-body"><h3>${r.name}</h3><p class="tag">${r.tag}</p><p class="known">${r.known}</p>
       <dl class="stats"><dt>SPD</dt><dd>${pips(r.spd)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
-      <div class="card-foot"><span class="pb">PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</span>
-      <button class="look" type="button" aria-label="Change skin tone"><i style="--swatch:${SKINS[r.skin]}"></i>LOOK</button></div></div>`;
+      <p class="perk">${r.perk}</p>
+      <div class="card-foot"><span class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</span></div></div>`;
     el.querySelector('canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
     el.addEventListener('click', e => {
-      if (e.target.closest('.look')){
-        r.skin = (r.skin + 1) % SKINS.length;
-        looks[r.id] = r.skin; store.set('looks', looks);
-        rebuildRunnerSprites(); renderCards(); return;
-      }
-      if (e.target.closest('input')){ choose(i, false); return; }
       choose(i, true);
     });
     el.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === el){ e.preventDefault(); choose(i, true); } });
     wrap.appendChild(el);
   });
-  const inp = $('#wolfName');
-  if (inp){
-    inp.addEventListener('input', () => {
-      const v = inp.value.toUpperCase().replace(/[^A-Z0-9 .\-]/g, '').slice(0, 10);
-      RUNNERS[0].name = v.trim() || 'WOLF'; store.set('name', RUNNERS[0].name);
-    });
-    inp.addEventListener('keydown', e => e.stopPropagation());
-  }
 }
 function choose(i, rerender){
   if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
@@ -1031,7 +1026,8 @@ function showResults(){
   const prev = pbs[me.id];
   const isPB = !prev || myT < prev;
   if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
-  $('#resName').textContent = me.name + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
+  $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
+  $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full;
   $('#resTime').textContent = fmt(myT);
   const badges = [];
   if (isPB) badges.push(['NEW PB!', 'pb']);
@@ -1048,7 +1044,7 @@ function showResults(){
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
-  lastShare = `Wolf Pack Parkrun, Zuiderpark 5K\n${me.name}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps`;
+  lastShare = `Wolf Pack Parkrun, Zuiderpark 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps`;
   $('#copyMsg').textContent = '';
   show('result');
 }

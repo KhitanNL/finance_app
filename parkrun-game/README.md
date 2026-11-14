@@ -1,6 +1,6 @@
 # Wolf Pack Parkrun
 
-An 8-bit mobile web game for the Zuiderpark Wolf group. Pick a runner card, then run two laps of 2.5K
+An 8-bit mobile web game for the Zuiderpark Wolf group. Pick a runner card (Julian, Jordi, Luca or Sing Ho), then run two laps of 2.5K
 (5K total) that start and finish at the shimmering hall in Zuiderpark.
 
 - Tap **RUN** as fast as you can. Faster tapping means a faster 5K time.
@@ -10,4 +10,4 @@ An 8-bit mobile web game for the Zuiderpark Wolf group. Pick a runner card, then
 - Your PB per runner is saved on your phone.
 
 Open `index.html` in a phone browser. It is a single file with no build step.
-Runner names, taglines, stats and kit colours live in the `RUNNERS` array near the top of the script.
+Runner names, taglines, perks, stats, kit colours and rival target times live in the `RUNNERS` array near the top of the script. Card photos are in `img/`.
