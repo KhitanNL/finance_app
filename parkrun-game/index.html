@@ -159,6 +159,14 @@ p{margin:0;max-width:60ch}
 .pad.down{transform:translateY(5px);box-shadow:inset -5px -5px 0 rgba(0,0,0,.28),inset 5px 5px 0 rgba(255,255,255,.35),0 1px 0 var(--ink)}
 #jumpPad{background:#2f6fd6}
 #runPad{background:var(--chrome-2)}
+.race3{grid-template-columns:1fr .75fr 1fr}
+#footL,#footR{background:var(--chrome-2)}
+#jumpPad2{background:#2f6fd6}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode{font-family:var(--f-display);font-size:12px;color:var(--ink);background:var(--paper);border:3px solid var(--ink);padding:10px 8px;cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;box-shadow:0 4px 0 var(--ink)}
+.mode small{font-family:var(--f-body);font-size:17px}
+.mode[aria-pressed="true"]{background:var(--hivis)}
+.proto{font-family:var(--f-display);font-size:9px;line-height:1.6;color:var(--ink);background:var(--hivis);border:3px solid var(--ink);padding:6px 8px;margin:0}
 .hint{text-align:center;color:var(--muted);font-size:18px;margin-top:10px}
 
 /* results */
@@ -185,7 +193,9 @@ p{margin:0;max-width:60ch}
   #app[data-screen="race"] #panel{position:absolute;left:0;right:0;bottom:0;background:none;pointer-events:none;padding-block:0 12px}
   #app[data-screen="race"] .controls{height:96px;grid-template-columns:104px 1fr 150px;pointer-events:none}
   #app[data-screen="race"] .controls .pad{pointer-events:auto;opacity:.92}
-  #app[data-screen="race"] #runPad{grid-column:3}
+  #app[data-screen="race"] #runPad,#app[data-screen="race"] #footR{grid-column:3}
+  #app[data-screen="race"] .race3{grid-template-columns:130px 1fr 130px}
+  #app[data-screen="race"] #jumpPad2{grid-column:2;opacity:.6}
   #app[data-screen="race"] .hint{display:none}
   #app{position:relative}
 }
@@ -203,7 +213,7 @@ p{margin:0;max-width:60ch}
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
-      <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
+      <p class="muted">Two modes. CLASSIC: mash RUN to go faster. RACE: pace your heart rate with left and right strides. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
       <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
       <p class="muted" id="titleBest"></p>
@@ -222,6 +232,10 @@ p{margin:0;max-width:60ch}
       </div>
       <div class="info" id="runnerInfo"></div>
       <p class="muted">FAST twitch: every tap pushes harder. SLOW twitch: your speed fades slower when you ease off. JMP: higher jumps. BST: longer boosts. LOVE: bigger boost from the fans' hearts.</p>
+      <div class="modes" role="group" aria-label="Game mode">
+        <button class="mode" type="button" data-mode="race" aria-pressed="false">RACE<small>heart-rate pacing</small></button>
+        <button class="mode" type="button" data-mode="classic" aria-pressed="false">CLASSIC<small>mash to win</small></button>
+      </div>
       <div class="row">
         <button class="btn alt" id="backBtn" type="button">BACK</button>
         <button class="btn hot" id="goBtn" type="button">TO THE START</button>
@@ -229,11 +243,16 @@ p{margin:0;max-width:60ch}
     </section>
 
     <section id="scr-race" hidden>
-      <div class="controls">
+      <div class="controls" id="classicPads">
         <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
         <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
       </div>
-      <p class="hint">Keyboard: ← or → to run, SPACE or ↑ to jump</p>
+      <div class="controls race3" id="racePads" hidden>
+        <button class="pad" id="footL" type="button" aria-label="Left foot">LEFT<small>foot</small></button>
+        <button class="pad" id="jumpPad2" type="button" aria-label="Jump">JUMP</button>
+        <button class="pad" id="footR" type="button" aria-label="Right foot">RIGHT<small>foot</small></button>
+      </div>
+      <p class="hint" id="raceHint">Keyboard: ← or → to run, SPACE or ↑ to jump</p>
     </section>
 
     <section id="scr-result" hidden>
@@ -325,6 +344,46 @@ const flowOrder = () => { const a = []; for (let i = 0; i < visibleCount(); i++)
   if (secretUnlocked){ a.pop(); a.unshift(RUNNERS.length - 1); } return a; };
 const posOf = i => Math.max(0, flowOrder().indexOf(i));
 let pbs = store.get('pbs', {});
+/* ===== RACE MODE (prototype) ===== */
+const RC = { BASEV:2.2, INC:0.21, DRAG:0.6, CAP:2.86, SAME:0.6, BLOWN:0.25, HRMAX:205, THR:182, HR0:95, HRK:12, UP:0.55, DOWN:0.28, REDMAX:3.5, RECOVER:10 };
+const RACE_TARGET = { julian:1090, jordi:1129, luca:1058, singho:1110, ronald:1150, ivan:1100, jeroen:1170, draakie:1120 };
+const RACE_PERK = {
+  julian:'Fresh Asics: every stride pushes slightly harder.',
+  jordi:'Crowd favourite: heart rate recovers faster, and hearts calm him most (max LOVE).',
+  luca:'Marathon engine: threshold 2% higher on lap 2.',
+  singho:'Gel collector: gels drop HR 25% more, and an emergency gel from the belt the first time he hits red.',
+  ronald:'Puma pounce: puddles and geese only slow him half as much.',
+  ivan:'PT power: slightly higher top speed.',
+  jeroen:'Executive start: leaves at full speed with HR already at 165. Pace yourself, chief.',
+  draakie:'Influencer: every fan group films him, which calms his heart rate. Gelletje!!!',
+};
+const RACE_LABEL = { nomio:'SURGE WINDOW!', gel:'HR DOWN!', beet:'THRESHOLD UP!', heart:'CALM HEART' };
+const isRace = () => G.mode === 'race';
+const pbKey = () => isRace() ? 'pbs.race' : 'pbs';
+const pbOf = id => (store.get(pbKey(), {}) || {})[id];
+function raceThr(r){ return RC.THR + (r.boost.beet > 0 ? 6 : 0) + (r.lap === 2 && r.me.fx.lap2 ? RC.THR * 0.02 : 0); }
+function raceHR(r, dt){
+  const cad = r.tapTimes.length, st = (r.me.st || 3) - 3;
+  const target = RC.HR0 + RC.HRK * cad - 1.5 * st;
+  const k = target > r.hr ? RC.UP : RC.DOWN * (r.me.id === 'jordi' ? 1.35 : 1) * (1 + 0.08 * st);
+  r.hr += (target - r.hr) * Math.min(1, k * dt);
+  r.hr = Math.min(RC.HRMAX, r.hr);
+  const thr = raceThr(r); r.thr = thr;
+  if (r.beltGel && r.hr > thr){ r.beltGel = 0; r.hr -= 14; msg('GEL FROM THE BELT!', '#7fb2ff'); }
+  if (r.hr > thr && r.boost.nomio <= 0){
+    r.red += dt; r.redTotal += dt * TS;
+    if (!r.blown && r.red > RC.REDMAX){ r.blown = true; r.blowups++; r.red = 0; r.e *= 0.6; msg('BLOWN UP! EASE OFF', '#ff6a5a'); sfx('hit'); try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch(e){} }
+  } else r.red = Math.max(0, r.red - dt * 0.7);
+  if (r.blown && r.hr < thr - RC.RECOVER){ r.blown = false; msg('RECOVERED!', '#7fe07a'); }
+  r.hrSum += r.hr * dt; r.hrT += dt; r.hrMax = Math.max(r.hrMax, r.hr);
+}
+function raceItem(r, type){
+  const bm = boostMult();
+  if (type === 'nomio'){ r.boost.nomio = 3.5 * bm; r.red = 0; }
+  if (type === 'gel'){ r.hr -= 14 * (r.me.fx.gel ? 1.25 : 1); r.boost.gel = 1.5; }
+  if (type === 'beet') r.boost.beet = 8 * bm;
+  if (type === 'heart'){ r.hr -= 1.5 * (r.me.love || 2); r.boost.heart = 1; r.hearts++; }
+}
 
 /* ---------- pixel helpers ---------- */
 function mk(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -748,7 +807,7 @@ function music(){
 function setMuteLabel(){ const b = $('#muteBtn'); b.textContent = AU.muted ? 'SOUND OFF' : 'SOUND ON'; b.setAttribute('aria-pressed', String(AU.muted)); }
 
 /* ---------- game state ---------- */
-const G = { screen:'title', sel:store.get('sel', 0), time:0 };
+const G = { screen:'title', sel:store.get('sel', 0), time:0, mode:store.get('mode', 'classic') === 'race' ? 'race' : 'classic' };   // CLASSIC is the default
 if (!(G.sel >= 0 && G.sel < visibleCount())) G.sel = 0;
 let SPR = [];
 function rebuildRunnerSprites(){ SPR = RUNNERS.map(runnerSprites); }
@@ -786,11 +845,12 @@ function newRace(){
     obstacles.push({ d, type: rng() < 0.5 ? 'puddle' : 'goose', hit:false });
   }
   const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel && i < visibleCount()).map(i => ({
-    i, T: RUNNERS[i].target + (rng() - 0.5) * 60, ph: rng() * 6, d: 0, lane: 0, anim: rng() * 4
+    i, T: (isRace() ? RACE_TARGET[RUNNERS[i].id] : RUNNERS[i].target) + (rng() - 0.5) * 60, ph: rng() * 6, d: 0, lane: 0, anim: rng() * 4
   }));
   race = {
     me, d:0, vt:0, e:0, v:0, y:0, vy:0, air:false, taps:0, tapTimes:[], lastTap:0, maxCad:0,
     boost:{ beet:0, nomio:0, gel:0, heart:0 }, slow:0, stumble:0, msgs:[], parts:[], lap:1, finished:false, finishVT:0, after:0,
+    hr:RC.HR0, thr:RC.THR, red:0, redTotal:0, blown:false, blowups:0, hrSum:0, hrT:0, hrMax:RC.HR0, lastSide:'', beltGel:0, mode:G.mode,
     crowds, got:0, hearts:0, countdown:3.2, lastCount:4, anim:0, items, obstacles, rivals, split:0
   };
 }
@@ -801,9 +861,20 @@ function burst(x, y, col, n, spread = 40){
   for (let i = 0; i < n; i++) race.parts.push({ x, y, vx:(Math.random() - 0.5) * spread, vy:-Math.random() * spread, life:0.5 + Math.random() * 0.4, col });
 }
 
-function tapRun(){
+function tapRun(side){
   if (G.screen !== 'race' || !race || race.countdown > 0 || race.finished) return;
   const now = performance.now();
+  if (race.mode === 'race'){
+    if (now - race.lastTap < 35) return;
+    race.lastTap = now;
+    const alt = side && side !== race.lastSide ? 1 : RC.SAME;   // alternating feet = full strides
+    race.lastSide = side || race.lastSide;
+    const val = alt * (race.blown && race.boost.nomio <= 0 ? RC.BLOWN : 1);   // Nomio: surge window ignores the blow-up penalty
+    const cap = RC.CAP + (race.me.fx.cap ? 0.1 : 0);
+    race.e = Math.min(cap, race.e + RC.INC * val * (1 + 0.02 * (race.me.spd - 3)) * (race.me.fx.inc || 1));
+    race.taps++; race.tapTimes.push(now); sfx('tap');
+    return;
+  }
   if (now - race.lastTap < 45) return;
   race.lastTap = now;
   const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.5 : 0);
@@ -827,22 +898,29 @@ function update(dt){
     r.countdown -= dt;
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
+    if (r.countdown <= 0 && r.mode === 'race'){ sfx('go'); msg('GO!', '#e6f02a');
+      if (r.me.fx.fastStart){ r.e = RC.CAP; r.hr = 165; msg('EXECUTIVE START!', '#7fb2ff'); }
+      if (r.me.fx.startGel) r.beltGel = 1;
+      return; }
     if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = CAP + (r.me.fx.cap || 0); msg('EXECUTIVE START!', '#7fb2ff'); }
       if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
   r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
-  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1) * (r.me.fx.drag || 1) * (1 - 0.04 * ((r.me.st || 3) - 3));   // slow twitch: speed fades slower
+  const drag = r.mode === 'race' ? RC.DRAG : DRAG * (r.boost.gel > 0 ? 0.85 : 1) * (r.me.fx.drag || 1) * (1 - 0.04 * ((r.me.st || 3) - 3));   // slow twitch: speed fades slower
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
-  if (r.boost.beet > 0) mult *= 1.08;
-  if (r.boost.nomio > 0) mult *= 1.15;
+  if (r.mode !== 'race'){
+    if (r.boost.beet > 0) mult *= 1.08;
+    if (r.boost.nomio > 0) mult *= 1.15;
+    if (r.boost.heart > 0) mult *= (r.heartMult || 1.1);
+    if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
+  } else if (!r.finished) raceHR(r, dt);
   if (r.slow > 0) mult *= 0.55;
-  if (r.boost.heart > 0) mult *= (r.heartMult || 1.1);
-  if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
-  r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
+  const bv = r.mode === 'race' ? RC.BASEV : BASEV;
+  r.v = r.finished ? Math.max(0, (bv + r.e) * (1 - r.after / 2)) : (bv + r.e) * mult;
   const prevD = r.d;
   r.d += r.v * TS * dt;
   if (!r.finished) r.vt += TS * dt;
@@ -862,6 +940,7 @@ function update(dt){
     if (it.h + 4 > foot && it.h - 4 < foot + 19){
       it.got = true; r.got++;
       const bm = boostMult();
+      if (r.mode === 'race'){ raceItem(r, it.type); msg(RACE_LABEL[it.type], ITEM_INFO[it.type].col); burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70); sfx('item'); continue; }
       if (it.type === 'beet') r.boost.beet = 6 * bm;
       if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
@@ -883,7 +962,7 @@ function update(dt){
   }
   // influencer: fans film you as you pass
   if (r.me.fx.fans) for (const c of r.crowds){
-    if (!c.filmed && r.d >= c.d){ c.filmed = true; r.heartMult = 1.1; r.boost.heart = 3 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
+    if (!c.filmed && r.d >= c.d){ c.filmed = true; if (r.mode === 'race'){ r.hr -= 5; msg('GOING VIRAL!', '#ff6f8f'); continue; } r.heartMult = 1.1; r.boost.heart = 3 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
   }
   // laps and finish
   if (r.lap === 1 && r.d >= LAP){ r.lap = 2; r.split = r.vt; msg('LAP 2! ' + fmt(r.vt), '#e6f02a'); sfx('lap'); }
@@ -1051,20 +1130,36 @@ function drawHUD(PX){
   txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
   txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
   // energy bar
-  const cap = CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 : 0);
+  const cap = r.mode === 'race' ? RC.CAP + (r.me.fx.cap ? 0.1 : 0) : CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 : 0);
   const fr = Math.max(0, Math.min(1, r.e / cap));
   ctx.fillStyle = INK; ctx.fillRect(4, 54, 98, 8);
   ctx.fillStyle = '#3a3440'; ctx.fillRect(5, 55, 96, 6);
   ctx.fillStyle = fr < 0.45 ? '#47b84a' : fr < 0.75 ? '#e6f02a' : '#f26a1b';
   ctx.fillRect(5, 55, Math.round(96 * fr), 6);
   ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(5, 55, Math.round(96 * fr), 1);
+  // heart-rate gauge (race mode)
+  const by = r.mode === 'race' ? 80 : 66;
+  if (r.mode === 'race'){
+    const lo = 100, hi = 205, gx = 5, gw = 96, px = v => gx + Math.round(gw * Math.max(0, Math.min(1, (v - lo) / (hi - lo))));
+    ctx.fillStyle = INK; ctx.fillRect(4, 66, 98, 10);
+    ctx.fillStyle = '#2f8a3a'; ctx.fillRect(gx, 67, px(r.thr - 15) - gx, 8);
+    ctx.fillStyle = '#c9b81a'; ctx.fillRect(px(r.thr - 15), 67, px(r.thr) - px(r.thr - 15), 8);
+    ctx.fillStyle = '#c8202e'; ctx.fillRect(px(r.thr), 67, gx + gw - px(r.thr), 8);
+    const hx = px(r.hr); ctx.fillStyle = '#ffffff'; ctx.fillRect(hx - 1, 65, 3, 12); ctx.fillStyle = INK; ctx.fillRect(hx, 66, 1, 10);
+    const inRed = r.hr > r.thr;
+    if ((inRed || r.blown) && Math.floor(G.time * 6) % 2){ ctx.fillStyle = 'rgba(200,32,46,.85)'; ctx.fillRect(0, 0, W, 3); ctx.fillRect(0, CH - 3, W, 3); ctx.fillRect(0, 0, 3, CH); ctx.fillRect(W - 3, 0, 3, CH); }
+    txt('HR ' + Math.round(r.hr), W - 4, 82, r.blown ? '#ff6a5a' : inRed ? '#ff8a7a' : r.hr > r.thr - 15 ? '#e6f02a' : '#7fe07a', 'right');
+    if (r.boost.nomio > 0) txt('SURGE ' + r.boost.nomio.toFixed(1), W - 4, 92, '#ffd23f', 'right');
+    if (r.blown && Math.floor(G.time * 4) % 2) txt('BLOWN UP! EASE OFF', W / 2, 128 + Math.round(OFF * 0.5), '#ff6a5a', 'center', 8);
+  }
   // active boosts
   let bx = 4;
   for (const k of ['beet', 'nomio', 'gel', 'heart']){
     if (r.boost[k] <= 0) continue;
-    ctx.drawImage(IMG[k], bx, 66);
-    ctx.fillStyle = INK; ctx.fillRect(bx, 77, 12, 3);
-    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, 78, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'heart' ? 3 : k === 'nomio' ? 2.6 : k === 'beet' ? 6 : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
+    if (r.mode === 'race' && (k === 'gel' || k === 'heart')) continue;
+    ctx.drawImage(IMG[k], bx, by);
+    ctx.fillStyle = INK; ctx.fillRect(bx, by + 11, 12, 3);
+    ctx.fillStyle = ITEM_INFO[k].col; ctx.fillRect(bx + 1, by + 12, Math.max(1, Math.round(10 * Math.min(1, r.boost[k] / (k === 'heart' ? 3 : k === 'nomio' ? (r.mode === 'race' ? 3.5 : 2.6) : k === 'beet' ? (r.mode === 'race' ? 8 : 6) : 7 * (r.me.fx.gel || 1)) / boostMult()))), 1);
     bx += 16;
   }
   // right column
@@ -1097,6 +1192,8 @@ function show(screen){
 }
 function startRace(){
   audioInit();
+  $('#classicPads').hidden = isRace(); $('#racePads').hidden = !isRace();
+  $('#raceHint').textContent = isRace() ? 'Alternate LEFT and RIGHT thumbs. Watch your heart rate: stay out of the red. Keyboard: F and J for feet, SPACE to jump.' : 'Keyboard: ← or → to run, SPACE or ↑ to jump';
   newRace();
   show('race');
   AU.playing = true; AU.step = 0; AU.nextT = 0;
@@ -1139,7 +1236,7 @@ function renderInfo(){
   $('#flowTag').textContent = r.tag;
   $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${r.name}</h3><p class="known">${r.known}</p>
     <dl class="stats"><dt>FAST</dt><dd>${pips(r.spd)}</dd><dt>SLOW</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
-    <p class="perk">${r.perk}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>`;
+    <p class="perk">${isRace() ? RACE_PERK[r.id] : r.perk}</p><p class="pb">${isRace() ? 'RACE' : 'CLASSIC'} PB ${pbOf(r.id) ? fmt(pbOf(r.id)) : '--:--'}</p>`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
 /* Cover Flow: centre card faces you, neighbours swing away in 3D */
@@ -1239,14 +1336,17 @@ function showResults(){
   const rows = [{ name: me.name, t: myT, me: true, id: me.id }].concat(r.rivals.map(v => ({ name: RUNNERS[v.i].name, t: v.T, id: RUNNERS[v.i].id })));
   rows.sort((a, b) => a.t - b.t);
   const pos = rows.findIndex(x => x.me) + 1;
-  const prev = pbs[me.id];
+  const book = store.get(pbKey(), {}) || {};
+  const prev = book[me.id];
   const isPB = !prev || myT < prev;
-  if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
+  if (isPB){ book[me.id] = Math.round(myT); store.set(pbKey(), book); if (!isRace()) pbs = book; }
   $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
   $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full;
   $('#resTime').textContent = fmt(myT);
   const badges = [];
+  badges.push([r.mode === 'race' ? 'RACE MODE' : 'CLASSIC', '']);
   if (isPB) badges.push(['NEW PB!', 'pb']);
+  if (r.mode === 'race' && r.blowups === 0) badges.push(['NO BLOW-UPS', '']);
   if (myT < 1020) badges.push(['SUB 17!', '']);
   else if (myT < 1080) badges.push(['SUB 18!', '']);
   if (pos === 1) badges.push(['PACK LEADER', '']);
@@ -1258,11 +1358,11 @@ function showResults(){
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(r.mode === 'race' ? [['Red zone', fmt(r.redTotal)], ['Blow-ups', String(r.blowups)], ['Avg HR', String(Math.round(r.hrSum / Math.max(0.1, r.hrT)))], ['Max HR', String(Math.round(r.hrMax))]] : []), ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
-  lastShare = `Wolfpack Run, Zuiderpark 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\nwolfpackrun.app`;
+  lastShare = `Wolfpack Run, Zuiderpark 5K (${r.mode === 'race' ? 'RACE' : 'CLASSIC'} mode)\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps${r.mode === 'race' ? ' · ' + r.blowups + ' blow-ups' : ''}\nwolfpackrun.app`;
   $('#copyMsg').textContent = '';
   show('result');
 }
@@ -1278,9 +1378,25 @@ function bindPad(el, fn){
 }
 bindPad($('#runPad'), tapRun);
 bindPad($('#jumpPad'), tapJump);
+bindPad($('#jumpPad2'), tapJump);
+bindPad($('#footL'), () => tapRun('L'));
+bindPad($('#footR'), () => tapRun('R'));
+function setMode(m){
+  G.mode = m === 'classic' ? 'classic' : 'race'; store.set('mode', G.mode);
+  document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === G.mode)));
+  if ($('#runnerInfo') && G.screen === 'select') renderInfo();
+}
+document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => { sfx('select'); setMode(b.dataset.mode); }));
+setMode(G.mode);
 cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
 window.addEventListener('keydown', e => {
   if (G.screen !== 'race' || e.repeat) return;
+  if (race && race.mode === 'race'){
+    if (e.key === 'f' || e.key === 'F' || e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun('L'); }
+    else if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){ e.preventDefault(); tapRun('R'); }
+    else if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){ e.preventDefault(); tapJump(); }
+    return;
+  }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun(); }
   else if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
 });
