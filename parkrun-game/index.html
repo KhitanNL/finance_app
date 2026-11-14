@@ -1312,7 +1312,7 @@ function flowTo(pos){   // pos = place in the carousel
     if (moved > 6) wrap.classList.add('dragging');
     const now = performance.now();
     vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
-    flowPos = Math.max(-0.4, Math.min(visibleCount() - 0.6, sp - dx / 90));
+    flowPos = Math.max(-0.4, Math.min(flowOrder().length - 0.6, sp - dx / 90));   // includes the coming soon covers
     layoutFlow();
   });
   const end = () => {
