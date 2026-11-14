@@ -233,7 +233,7 @@ p{margin:0;max-width:60ch}
         <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
         <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
       </div>
-      <p class="hint">Keyboard: SPACE or ← to run, ↑ to jump</p>
+      <p class="hint">Keyboard: ← or → to run, SPACE or ↑ to jump</p>
     </section>
 
     <section id="scr-result" hidden>
@@ -1274,15 +1274,15 @@ function bindPad(el, fn){
     el.classList.add('down'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('down'), 70);
   });
   el.addEventListener('contextmenu', e => e.preventDefault());
-  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); if (!e.repeat) fn(); } });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); if (!e.repeat) fn(); } });
 }
 bindPad($('#runPad'), tapRun);
 bindPad($('#jumpPad'), tapJump);
 cv.addEventListener('pointerdown', e => { if (G.screen === 'race'){ e.preventDefault(); tapJump(); } });
 window.addEventListener('keydown', e => {
   if (G.screen !== 'race' || e.repeat) return;
-  if (e.key === ' ' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D'){ e.preventDefault(); tapRun(); }
-  else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.key === 'a' || e.key === 'A'){ e.preventDefault(); tapRun(); }
+  else if (e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'j' || e.key === 'J'){ e.preventDefault(); tapJump(); }
 });
 document.addEventListener('gesturestart', e => e.preventDefault());
 
