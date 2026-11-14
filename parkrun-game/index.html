@@ -285,7 +285,7 @@ const RUNNERS = [
     perk:'Fresh Asics: every tap pushes harder.', spd:5, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
   { id:'jordi', name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
-    perk:'Crowd favourite: grabs hearts from cheering fans for a speed kick. Also fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
+    perk:'Crowd favourite: hearts from the fans give him a big speed kick, three times what others get. Also fades slower.', spd:4, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
     pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
   { id:'luca', name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 17:38 5K and 4h marathon.', known:'5K 17:38 · Marathon 4h',
     perk:'Marathon engine: 5% faster on lap 2.', spd:3, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
@@ -397,7 +397,7 @@ const ITEM_INFO = {
 };
 ITEM_ROWS.heart = [".hh.hh.","hHhhhhh","hhhhhhh",".hhhhh.","..hhh..","...h..."];
 ITEM_PAL.heart = { h:'#ff3b6b', H:'#ffd0dc' };
-ITEM_INFO.heart = { label:'HEART BOOST!', name:'Heart', desc:'thrown by female fans, only for Jordi', col:'#ff6f8f' };
+ITEM_INFO.heart = { label:'HEART BOOST!', name:'Heart', desc:'thrown by female fans, Jordi gets an extra big boost', col:'#ff6f8f' };
 const GOOSE_ROWS = ["..ww........",".owww.......","yyww........","..ww........","..ww........","..wwwwwww...",".wwGwwwwwgg.",".wwwGGwwwg..","..wwwwwww...","....y..y....","...yy.yy...."];
 
 const IMG = {};
@@ -762,7 +762,7 @@ function newRace(){
   for (let d = 420; d < TOTAL - 200; d += 380 + rng() * 260){
     if (nearBuilding(d)) continue;
     crowds.push({ d, n: 3 + Math.floor(rng() * 3), seed: Math.floor(rng() * 1000) });
-    if (me.fx.hearts){
+    {   // every runner can catch hearts; Jordi gets the big boost
       for (let k = 0; k < 3; k++){
         const hd = d - 6 + k * 14;
         for (let j = items.length - 1; j >= 0; j--) if (items[j].type !== 'heart' && Math.abs(items[j].d - hd) < 24) items.splice(j, 1);
@@ -829,7 +829,7 @@ function update(dt){
   if (r.boost.beet > 0) mult *= 1.08;
   if (r.boost.nomio > 0) mult *= 1.15;
   if (r.slow > 0) mult *= 0.55;
-  if (r.boost.heart > 0) mult *= 1.1;
+  if (r.boost.heart > 0) mult *= (r.heartBig || r.me.fx.fans ? 1.1 : 1.03);
   if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
   r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
   const prevD = r.d;
@@ -854,7 +854,7 @@ function update(dt){
       if (it.type === 'beet') r.boost.beet = 6 * bm;
       if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
-      if (it.type === 'heart'){ r.boost.heart = 3 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; }
+      if (it.type === 'heart'){ const big = !!r.me.fx.hearts; r.heartBig = big; r.boost.heart = (big ? 3 : 1.5) * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + (big ? 0.35 : 0.1)); r.hearts++; }
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
       sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
@@ -958,7 +958,7 @@ function render(){
     }
     const cx = c.d * PXM - camX;
     if (r.me.fx.fans && cx > -20 && cx < W + 20 && Math.floor(t * 8 + c.seed) % 5 === 0){ ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(cx + ((c.seed + Math.floor(t * 8)) % 5) * 6 - 12), PATH_TOP - 15, 2, 2); }
-    if (r.me.fx.hearts && cx > -20 && cx < W + 20){   // little hearts popping up over Jordi's fans
+    if (cx > -20 && cx < W + 20){   // little hearts popping up over the fans
       const ph = (t * 1.6 + c.seed) % 1;
       ctx.drawImage(IMG.heart, Math.round(cx - 3 + Math.sin(t * 3 + c.seed) * 6), Math.round(PATH_TOP - 24 - ph * 14));
     }
@@ -1245,7 +1245,7 @@ function showResults(){
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(r.me.fx.hearts ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
