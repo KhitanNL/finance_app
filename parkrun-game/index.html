@@ -101,7 +101,7 @@ p{margin:0;max-width:60ch}
 .info canvas{grid-row:span 4;width:56px;height:80px;image-rendering:pixelated;background:linear-gradient(var(--sky) 0 72%,var(--grass) 72%);border:2px solid var(--ink);padding:4px}
 .info h3{font-size:12px;line-height:1.4}
 .info .known{font-family:var(--f-display);font-size:7px;line-height:1.6;color:var(--ink)}
-.info .stats{margin-top:2px}
+.info .stats{margin-top:2px;grid-column:2}
 .info .perk{grid-column:1 / -1;font-size:18px;line-height:1.1;color:#4a4352;border-top:2px dashed #cbbfa8;padding-top:8px}
 .info .pb{grid-column:1 / -1}
 /* arrows and dots live inside the carousel */
@@ -111,7 +111,21 @@ p{margin:0;max-width:60ch}
 #nextBtn{right:max(8px, env(safe-area-inset-right, 0px))}
 .flow .dots{position:absolute;left:0;right:0;bottom:8px;justify-content:center;pointer-events:none}
 .flow .dots i{width:8px;height:8px}
-.stat-help{font-size:17px}
+.help-link{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--muted);font-family:var(--f-body);font-size:19px;padding:2px 0;cursor:pointer;text-align:left}
+.help-link b{display:grid;place-items:center;width:26px;height:26px;flex:0 0 26px;font-family:var(--f-display);font-weight:400;font-size:12px;color:var(--ink);background:var(--hivis);border:2px solid var(--ink)}
+.help-link:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
+.help{position:fixed;inset:0;z-index:50;background:rgba(10,8,14,.78);display:grid;place-items:center;
+  padding:max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.help-box{width:min(520px,100%);max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink);padding:16px;display:flex;flex-direction:column;gap:12px;font-size:19px;line-height:1.15}
+.help-box h2{font-size:13px}
+.help-box h3{font-size:10px;line-height:1.5;margin-top:4px}
+.help-box p{max-width:none}
+.help-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.help-box .tip{background:#efe4cc;border:2px solid var(--ink);padding:8px}
+.help-box table{border-collapse:collapse;width:100%;font-size:17px;color:var(--ink);font-family:var(--f-body)}
+.help-box td{color:var(--ink);background:#fffbe9}
+.help-box th,.help-box td{border:2px solid var(--ink);padding:4px 6px;text-align:left;vertical-align:top}
+.help-box th{font-family:var(--f-display);font-weight:400;font-size:9px;line-height:1.5;color:var(--ink);background:#efe4cc}
 /* keep BACK and TO THE START always visible */
 #scr-select .row{position:sticky;bottom:-6px;z-index:5;padding-block:8px 8px;margin-bottom:-6px;background:linear-gradient(to top,var(--deck) 75%,rgba(36,33,42,0))}
 .flow-arrow{font-family:var(--f-display);font-size:12px;width:44px;height:40px;border:3px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
@@ -152,10 +166,10 @@ p{margin:0;max-width:60ch}
   font-family:var(--f-display);font-size:11px;width:100%;box-sizing:border-box;padding:4px 5px;border:2px solid var(--ink);
   background:#fffbe9;color:var(--ink);text-transform:uppercase;
 }
-.stats{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0;align-items:center}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;align-items:center;width:100%}
 .stats dt{font-family:var(--f-display);font-size:8px}
-.stats dd{margin:0;display:flex;gap:2px}
-.pip{width:14px;height:8px;border:2px solid var(--ink);background:transparent}
+.stats dd{margin:0;display:flex;gap:4px;min-width:0}
+.pip{flex:1 1 0;min-width:8px;height:10px;border:2px solid var(--ink);background:transparent}
 .pip.on{background:var(--chrome-2)}
 .card-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:2px}
 .pb{font-family:var(--f-display);font-size:8px;font-variant-numeric:tabular-nums}
@@ -206,6 +220,27 @@ p{margin:0;max-width:60ch}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}.card,#cards .card{transition:none}}
 </style>
 
+<div class="help" id="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="help-box">
+    <h2 id="helpTitle">RUNNER STATS</h2>
+    <p>Every runner has a <b>fibre mix</b> of 6 points split between FAST and SLOW twitch. More of one always means less of the other.</p>
+    <div style="overflow-x:auto"><table>
+      <tr><th></th><th>FAST TWITCH</th><th>SLOW TWITCH</th></tr>
+      <tr><td>Top speed</td><td>higher</td><td>lower, capped</td></tr>
+      <tr><td>Each tap</td><td>pushes harder</td><td>a bit softer</td></tr>
+      <tr><td>Easing off</td><td>speed drops fast</td><td>holds speed longer</td></tr>
+      <tr><td>Boosts</td><td>stronger but shorter</td><td>weaker but last longer</td></tr>
+      <tr><td>Lap 2</td><td>tires, top speed drops towards the finish</td><td>no fatigue</td></tr>
+    </table></div>
+    <h3>OTHER STATS</h3>
+    <ul>
+      <li><b>LOVE:</b> hearts from the fans give a bigger speed kick. Jordi has the max.</li>
+      <li><b>JUMP:</b> jump higher to grab boosts.</li>
+    </ul>
+    <p class="tip"><b>Tip:</b> fast twitch runners like Julian win with hard mash bursts and a strong lap 1. Slow twitch runners like Luca win with steady tapping, long boosts and a strong lap 2.</p>
+    <button class="btn hot" id="helpClose" type="button">GOT IT</button>
+  </div>
+</div>
 <div id="app" data-screen="title">
   <div id="stage">
     <canvas id="game" width="320" height="192" aria-label="Zuiderpark parkrun game scene"></canvas>
@@ -234,7 +269,7 @@ p{margin:0;max-width:60ch}
         <div class="flow-caption" aria-live="polite"><b id="flowName"></b><span id="flowTag"></span></div>
         <div class="dots" id="dots" aria-hidden="true"></div></div>
       <div class="info" id="runnerInfo"></div>
-      <p class="muted stat-help">FAST: taps push harder · SLOW: speed fades slower · LOVE: bigger heart boost · JMP: higher jumps · BST: longer boosts</p>
+      <button class="help-link" id="helpBtn" type="button" aria-haspopup="dialog"><b>?</b> How do FAST and SLOW twitch work?</button>
       <div class="row">
         <button class="btn alt" id="backBtn" type="button">BACK</button>
         <button class="btn hot" id="goBtn" type="button">START RACE</button>
@@ -295,28 +330,31 @@ const store = {
 /* ---------- runners ---------- */
 const RUNNERS = [
   { id:'julian', shouts:['ASICS ADDICT!', 'GO JULIAN!'], name:'JULIAN', full:'Julian Bond', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
-    perk:'Fresh Asics: every tap pushes harder.', spd:5, st:2, love:2, jmp:3, bst:2, target:1095, fx:{ inc:1.04 },
+    perk:'Fresh Asics: every tap pushes harder.', spd:5, st:1, love:2, jmp:3, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
   { id:'jordi', shouts:['WE LOVE JORDI!', 'JORDI <3', 'MR 5K!'], name:'JORDI', full:'Jordi Ozir', photo:'img/jordi.jpg', tag:'Mr. 5K.', known:'5K 18:49 · 10K 39:18',
-    perk:'Crowd favourite: max LOVE, so hearts from the fans give him the biggest speed kick. Also fades slower.', spd:4, st:4, love:5, jmp:3, bst:3, target:1129, fx:{ drag:0.93, hearts:true },
+    perk:'Crowd favourite: max LOVE, so hearts from the fans give him the biggest speed kick. Also fades slower.', spd:4, st:2, love:5, jmp:3, target:1129, fx:{ drag:0.93, hearts:true },
     pal:{ h:'#1b1420', s:'#a8683c', t:'#f26a1b', n:'#ffb27a', p:'#e05a14', k:'#2a2d3a' } },
   { id:'luca', shouts:['MARATHON MAN!', 'GO LUCA!'], name:'LUCA', full:'Luca', photo:'img/luca.jpg', tag:'Mr 17:38 5K and 4h marathon.', known:'5K 17:38 · Marathon 4h',
-    perk:'Marathon engine: 5% faster on lap 2.', spd:3, st:5, love:2, jmp:3, bst:4, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
+    perk:'Marathon engine: 5% faster on lap 2.', spd:1, st:5, love:2, jmp:3, target:1118, fx:{ lap2:1.05 }, belt:true, head:'curly',
     pal:{ h:'#6a4426', s:'#f2c6a2', t:'#0f6b72', n:'#3fd0d6', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#f2d21a' } },
   { id:'singho', shouts:['GEL MAN!', 'SING HO!'], name:'SING HO', full:'Sing Ho', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
-    perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, st:4, love:2, jmp:2, bst:5, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
+    perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, st:3, love:2, jmp:2, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
     pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
   { id:'ronald', shouts:['MR PUMA!', 'GO RONALD!'], name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
-    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, st:4, love:2, jmp:4, bst:3, target:1120, fx:{ soft:0.5 }, head:'capf',
+    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, st:3, love:2, jmp:4, target:1120, fx:{ soft:0.5 }, head:'capf',
     pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
   { id:'ivan', shouts:['COACH IVAN!', 'GO IVAN!'], name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
-    perk:'PT power: higher top speed when you tap flat out.', spd:4, st:3, love:3, jmp:4, bst:2, target:1100, fx:{ cap:0.35 }, head:'long',
+    perk:'PT power: higher top speed when you tap flat out.', spd:4, st:2, love:3, jmp:4, target:1100, fx:{ cap:0.35 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
   { id:'jeroen', shouts:['CHIEF!', 'GO JEROEN!'], name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
-    perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, st:2, love:2, jmp:3, bst:4, target:1230, fx:{ fastStart:true }, head:'beard',
+    perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, st:4, love:2, jmp:3, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
+  { id:'rodi', shouts:['GO RODI!', 'DIESEL!', 'SLOW AND STEADY!', 'HERE COMES RODI!'], name:'RODI', full:'Rodi', emoji:'🐢', photo:'', tag:'Mystery animal. A true diesel.', known:'Slow starter, unstoppable finisher',
+    perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true },
+    pal:{ h:'#3f8a2e', s:'#7cc65a', t:'#8a5a2a', n:'#c99a4a', p:'#2f6a24', k:'#d9c27a' } },
   { id:'draakie', shouts:['GELLETJE!!', 'DRAAKIE!', 'JONY!', 'GELLETJE!!!', 'DRAAKIE!!'], name:'JONY', full:'Jony (Draakie)', emoji:'🐉', photo:'', tag:'Gelletje!!!', known:'Running influencer · Jony Oosterbos',
-    perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, st:3, love:1, jmp:4, bst:3, target:1120, fx:{ fans:true },
+    perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, st:3, love:1, jmp:4, target:1120, fx:{ fans:true },
     pal:{ h:'#ecc95a', s:'#f0c49c', t:'#2f9a3a', n:'#8fe07a', p:'#1f6a2a', k:'#f4f4f4' } },
 ];
 // Runners without a photo get a cover drawn from their emoji (Draakie: the dragon)
@@ -808,7 +846,12 @@ function newRace(){
   };
 }
 
-function boostMult(){ return 1 + 0.15 * (race.me.bst - 3); }
+/* Fibre mix: FAST + SLOW twitch = 6 points.
+   FAST: higher top speed, harder taps, stronger but shorter boosts, speed drops faster, tires on lap 2.
+   SLOW: lower top speed, holds speed, longer boosts, no lap 2 fatigue. */
+const fastF = me => 1 + 0.15 * (me.spd - 3);          // boost strength
+function boostMult(){ return 1 + 0.12 * (race.me.st - 3); }   // boost duration (slow twitch)
+function capOf(r){ return CAP * (1 + 0.04 * (r.me.spd - 3)) + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 * fastF(r.me) : 0); }
 function msg(s, col){ race.msgs.push({ s, col, t:0 }); }
 function burst(x, y, col, n, spread = 40){
   for (let i = 0; i < n; i++) race.parts.push({ x, y, vx:(Math.random() - 0.5) * spread, vy:-Math.random() * spread, life:0.5 + Math.random() * 0.4, col });
@@ -819,8 +862,8 @@ function tapRun(){
   const now = performance.now();
   if (now - race.lastTap < 45) return;
   race.lastTap = now;
-  const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.5 : 0);
-  const inc = INC * (1 + 0.05 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.15 : 1) * (race.me.fx.inc || 1);
+  const cap = capOf(race);
+  const inc = INC * (1 + 0.04 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1 + 0.15 * fastF(race.me) : 1) * (race.me.fx.inc || 1);
   race.e = Math.min(cap, race.e + inc);
   race.taps++; race.tapTimes.push(now);
   sfx('tap');
@@ -840,21 +883,27 @@ function update(dt){
     r.countdown -= dt;
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
-    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = CAP + (r.me.fx.cap || 0); msg('EXECUTIVE START!', '#7fb2ff'); }
+    if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = capOf(r); msg('EXECUTIVE START!', '#7fb2ff'); }
       if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
   r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
-  const drag = DRAG * (r.boost.gel > 0 ? 0.85 : 1) * (r.me.fx.drag || 1) * (1 - 0.04 * ((r.me.st || 3) - 3));   // slow twitch: speed fades slower
+  const drag = DRAG * (r.boost.gel > 0 ? 1 - 0.15 * fastF(r.me) : 1) * (r.me.fx.drag || 1) * (1 - 0.06 * (r.me.st - 3));   // slow twitch holds speed, fast twitch drops it
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
-  if (r.boost.beet > 0) mult *= 1.08;
-  if (r.boost.nomio > 0) mult *= 1.15;
+  if (r.boost.beet > 0) mult *= 1 + 0.08 * fastF(r.me);
+  if (r.boost.nomio > 0) mult *= 1 + 0.15 * fastF(r.me);
   if (r.slow > 0) mult *= 0.55;
   if (r.boost.heart > 0) mult *= (r.heartMult || 1.1);
   if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
+  if (r.me.fx.diesel){   // progressive speed: 82% at the start, 118% at the finish
+    const p = Math.min(1, r.d / TOTAL); mult *= 0.82 + 0.36 * Math.pow(p, 1.4);
+    if (!r.warm && p > 0.5){ r.warm = 1; msg('DIESEL WARMED UP!', '#7fe07a'); }
+    if (r.warm === 1 && p > 0.8){ r.warm = 2; msg('FULL THROTTLE!', '#ffd23f'); sfx('lap'); }
+  }
+  if (r.lap === 2 && r.me.spd > 3) mult *= 1 - 0.025 * (r.me.spd - 3) * Math.min(1, (r.d - LAP) / LAP);   // fast twitch tires on lap 2
   r.v = r.finished ? Math.max(0, (BASEV + r.e) * (1 - r.after / 2)) : (BASEV + r.e) * mult;
   const prevD = r.d;
   r.d += r.v * TS * dt;
@@ -876,7 +925,7 @@ function update(dt){
       it.got = true; r.got++;
       const bm = boostMult();
       if (it.type === 'beet') r.boost.beet = 6 * bm;
-      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0) + 0.5, r.e + 0.8); }
+      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(capOf(r) + 0.5, r.e + 0.8 * fastF(r.me)); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
       if (it.type === 'heart'){ const L = r.me.love || 2; r.heartMult = 1 + 0.02 * L; r.boost.heart = 0.6 * L * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.07 * L); r.hearts++; }   // LOVE stat sets the heart boost
       msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
@@ -888,6 +937,7 @@ function update(dt){
     if (o.hit || Math.abs(o.d - r.d) * PXM > 6) continue;
     if (foot < (o.type === 'goose' ? 10 : 3)){
       o.hit = true;
+      if (r.me.fx.immune){ msg(o.type === 'puddle' ? 'TURTLES LOVE WATER!' : 'GEESE DO NOT BOTHER A TURTLE', '#7fe07a'); continue; }
       const soft = r.me.fx.soft || 1;
       if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
       else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
@@ -911,7 +961,8 @@ function update(dt){
   for (const v of r.rivals){
     const vt = r.finished ? r.finishVT + r.after * TS : r.vt;
     const f = Math.min(1, vt / v.T);
-    v.d = vt >= v.T ? TOTAL + (vt - v.T) * 1.2 : TOTAL * f + 22 * Math.sin(Math.PI * f) * Math.sin(vt / 70 + v.ph);
+    const fp = RUNNERS[v.i].fx.diesel ? Math.pow(f, 1.45) : f;
+    v.d = vt >= v.T ? TOTAL + (vt - v.T) * 1.2 : TOTAL * fp + 22 * Math.sin(Math.PI * f) * Math.sin(vt / 70 + v.ph);
     v.anim += dt * (1.5 + (TOTAL / v.T) * 2.3) * (vt >= v.T ? 0.4 : 1);
   }
   // fx
@@ -1064,7 +1115,7 @@ function drawHUD(PX){
   txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
   txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
   // energy bar
-  const cap = CAP + (r.me.fx.cap || 0) + (r.boost.gel > 0 ? 0.5 : 0);
+  const cap = capOf(r);
   const fr = Math.max(0, Math.min(1, r.e / cap));
   ctx.fillStyle = INK; ctx.fillRect(4, 54, 98, 8);
   ctx.fillStyle = '#3a3440'; ctx.fillRect(5, 55, 96, 6);
@@ -1151,7 +1202,7 @@ function renderInfo(){
   $('#flowName').textContent = r.full.toUpperCase();
   $('#flowTag').textContent = r.tag;
   $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${r.name}</h3><p class="known">${r.known}</p>
-    <dl class="stats"><dt>FAST</dt><dd>${pips(r.spd)}</dd><dt>SLOW</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JMP</dt><dd>${pips(r.jmp)}</dd><dt>BST</dt><dd>${pips(r.bst)}</dd></dl>
+    <dl class="stats"><dt>FAST TWITCH</dt><dd>${pips(r.spd)}</dd><dt>SLOW TWITCH</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JUMP</dt><dd>${pips(r.jmp)}</dd></dl>
     <p class="perk">${r.perk}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
@@ -1303,6 +1354,10 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 $('#startBtn').addEventListener('click', () => { audioInit(); sfx('select'); show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
 $('#backBtn').addEventListener('click', () => { legend(); show('title'); });
 $('#goBtn').addEventListener('click', startRace);
+$('#helpBtn').addEventListener('click', () => { $('#help').hidden = false; $('#helpClose').focus(); });
+$('#helpClose').addEventListener('click', () => { $('#help').hidden = true; $('#helpBtn').focus(); });
+$('#help').addEventListener('click', e => { if (e.target.id === 'help'){ $('#help').hidden = true; } });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#help').hidden) $('#help').hidden = true; });
 $('#againBtn').addEventListener('click', startRace);
 $('#changeBtn').addEventListener('click', () => { show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
 $('#exitBtn').addEventListener('click', () => { AU.playing = false; releaseWake(); race = null; show('select'); renderCards(); });
