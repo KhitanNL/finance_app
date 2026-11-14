@@ -118,6 +118,15 @@ p{margin:0;max-width:60ch}
 .help-link{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--muted);font-family:var(--f-body);font-size:19px;padding:2px 0;cursor:pointer;text-align:left}
 .help-link b{display:grid;place-items:center;width:26px;height:26px;flex:0 0 26px;font-family:var(--f-display);font-weight:400;font-size:12px;color:var(--ink);background:var(--hivis);border:2px solid var(--ink)}
 .help-link:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
+.poster{position:fixed;inset:0;z-index:60;background:#050407;display:grid;place-items:center;cursor:zoom-out;
+  padding:max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px))}
+.poster img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border:3px solid var(--ink);box-shadow:0 0 0 3px var(--hivis)}
+.poster-emoji{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;color:var(--paper)}
+.poster-emoji span{font-size:min(55vw,300px);line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.poster-emoji b{font-family:var(--f-display);font-weight:400;font-size:18px}
+.poster-emoji i{font-style:normal;font-size:22px;color:var(--muted)}
+.poster-close{position:absolute;top:max(12px, env(safe-area-inset-top, 0px));right:max(12px, env(safe-area-inset-right, 0px))}
+#cards .cover[aria-selected="true"]{cursor:zoom-in}
 .help{position:fixed;inset:0;z-index:50;background:rgba(10,8,14,.78);display:grid;place-items:center;
   padding:max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
 .help-box{width:min(520px,100%);max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink);padding:16px;display:flex;flex-direction:column;gap:12px;font-size:19px;line-height:1.15}
@@ -244,6 +253,11 @@ p{margin:0;max-width:60ch}
     <p class="tip"><b>Tip:</b> fast twitch runners like Julian win with hard mash bursts and a strong lap 1. Slow twitch runners like Luca win with steady tapping, long boosts and a strong lap 2.</p>
     <button class="btn hot" id="helpClose" type="button">GOT IT</button>
   </div>
+</div>
+<div class="poster" id="poster" hidden role="dialog" aria-modal="true" aria-label="Runner poster">
+  <img id="posterImg" src="" alt="">
+  <div class="poster-emoji" id="posterEmoji" hidden></div>
+  <button class="hud-btn poster-close" id="posterClose" type="button" aria-label="Close poster">✕ CLOSE</button>
 </div>
 <div id="app" data-screen="title">
   <div id="stage">
@@ -377,11 +391,13 @@ let secretUnlocked = !!store.get('draakie', false);
 const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
 // Carousel order (runner indices). Once unlocked, Draakie sits right next to Julian, at the far left.
 // Coming soon: teaser covers at the end of the carousel, not playable (shown as -1, -2, -3 in the order)
+RUNNERS.forEach(r => { if (!r.emoji) r.poster = 'img/posters/' + r.id + '.jpg'; });
 const TEASERS = [
   { id:'ren', full:'Ren', tag:'Ekiden runner.', photo:'img/ren.jpg' },
   { id:'kiprun', full:'Kiprun', tag:'The hill specialist.', photo:'img/kiprun.jpg' },
   { id:'sander', full:'Sander', tag:'Trail runner.', photo:'img/sander.jpg' },
 ];
+TEASERS.forEach(t => { t.poster = 'img/posters/' + t.id + '.jpg'; });
 const flowOrder = () => { const a = []; for (let i = 0; i < visibleCount(); i++) a.push(i);
   if (secretUnlocked){ a.pop(); a.unshift(RUNNERS.length - 1); }
   TEASERS.forEach((t, k) => a.push(-(k + 1))); return a; };
@@ -1304,6 +1320,7 @@ function flowTo(pos){   // pos = place in the carousel
     if (moved <= 6){
       const cards = [...document.querySelectorAll('#cards .cover')];
       const i = cards.indexOf(tapCard);
+      if (i >= 0 && i === Math.round(flowPos)){ openPoster(flowOrder()[i]); return; }
       flowTo(i >= 0 ? i : Math.round(flowPos));
       return;
     }
@@ -1324,6 +1341,15 @@ function flowTo(pos){   // pos = place in the carousel
   $('#prevBtn').addEventListener('click', prevPress);
   $('#nextBtn').addEventListener('click', () => { secretTaps = 0; flowTo(Math.round(flowPos) + 1); });
 })();
+/* Full-screen poster viewer: tap the cover in the middle */
+function openPoster(item){
+  const who = item < 0 ? TEASERS[-item - 1] : RUNNERS[item];
+  const box = $('#poster'), img = $('#posterImg'), emo = $('#posterEmoji');
+  if (who.poster){ img.src = who.poster; img.alt = 'Poster of ' + who.full; img.hidden = false; emo.hidden = true; }
+  else { img.hidden = true; emo.hidden = false; emo.innerHTML = `<span>${who.emoji}</span><b>${who.full.toUpperCase()}</b><i>${who.tag}</i>`; }
+  box.hidden = false; sfx('select'); $('#posterClose').focus();
+}
+function closePoster(){ $('#poster').hidden = true; const c = $('#cards'); if (c) c.focus(); }
 function showTeaser(k, pos){
   const t = TEASERS[k];
   if (G.teaser !== k) sfx('select');
@@ -1404,6 +1430,8 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 $('#startBtn').addEventListener('click', () => { audioInit(); sfx('select'); show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
 $('#backBtn').addEventListener('click', () => { legend(); show('title'); });
 $('#goBtn').addEventListener('click', startRace);
+$('#poster').addEventListener('click', closePoster);
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#poster').hidden) closePoster(); });
 $('#helpBtn').addEventListener('click', () => { $('#help').hidden = false; $('#helpClose').focus(); });
 $('#helpClose').addEventListener('click', () => { $('#help').hidden = true; $('#helpBtn').focus(); });
 $('#help').addEventListener('click', e => { if (e.target.id === 'help'){ $('#help').hidden = true; } });
