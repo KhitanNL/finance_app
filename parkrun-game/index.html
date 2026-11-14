@@ -203,7 +203,7 @@ p{margin:0;max-width:60ch}
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
-      <p class="muted">Tap RUN in a steady rhythm, about 6 to 7 taps a second. Mash faster and you overstride. Hit JUMP to grab boosts floating over the path:</p>
+      <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
       <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
       <p class="muted" id="titleBest"></p>
@@ -231,7 +231,7 @@ p{margin:0;max-width:60ch}
     <section id="scr-race" hidden>
       <div class="controls">
         <button class="pad" id="jumpPad" type="button" aria-label="Jump">JUMP<small>grab boosts</small></button>
-        <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>steady rhythm</small></button>
+        <button class="pad" id="runPad" type="button" aria-label="Run, tap fast">RUN<small>tap tap tap</small></button>
       </div>
       <p class="hint">Keyboard: SPACE or ← to run, ↑ to jump</p>
     </section>
@@ -267,9 +267,6 @@ const TS = 20;          // race seconds per real second (about 55 s of tapping p
 const PXM = 1.2;        // world pixels per metre
 const LAP = 2500, TOTAL = 5000;
 const INC = 0.254, DRAG = 0.60, CAP = 3.0, BASEV = 1.8;   // tap energy model, speed = BASEV + energy (m/s)
-// Rhythm: a tap counts fully up to ~7 taps/s. Faster than that you overstride and each tap counts for less.
-const RHYTHM_MS = 140;
-const tapValue = ms => ms >= RHYTHM_MS ? 1 : Math.max(0.2, (ms - 60) / (RHYTHM_MS - 60));
 const GRAV = 560, JV = 188;
 const H = 192, PATH_TOP = 150, PATH_BOT = 167, FOOT_ME = 163, FOOT_RIV = 157;
 let W = 320, CH = 192, OFF = 0, FLIP = false;   // FLIP: world is mirrored so the pack runs clockwise (to the left)   // canvas height grows on tall screens; extra rows become sky
@@ -300,7 +297,7 @@ const RUNNERS = [
     perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, jmp:4, bst:3, target:1140, fx:{ soft:0.5 }, head:'capf',
     pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
   { id:'ivan', name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
-    perk:'PT power: slightly higher top speed when your rhythm is perfect.', spd:4, jmp:3, bst:2, target:1090, fx:{ cap:0.12 }, head:'long',
+    perk:'PT power: slightly higher top speed when you tap flat out.', spd:4, jmp:3, bst:2, target:1090, fx:{ cap:0.12 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
   { id:'jeroen', name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, jmp:3, bst:3, target:1230, fx:{ fastStart:true, inc:0.92 }, head:'beard',
@@ -774,13 +771,10 @@ function burst(x, y, col, n, spread = 40){
 function tapRun(){
   if (G.screen !== 'race' || !race || race.countdown > 0 || race.finished) return;
   const now = performance.now();
-  const gap = now - race.lastTap;
-  if (gap < 35) return;
+  if (now - race.lastTap < 45) return;
   race.lastTap = now;
-  const val = tapValue(gap);
-  if (val < 0.75){ race.over = 0.6; if (now - (race.overMsg || 0) > 3500){ race.overMsg = now; msg('TOO FAST! FIND YOUR RHYTHM', '#ff8a7a'); } }
   const cap = CAP + (race.me.fx.cap || 0) + (race.boost.gel > 0 ? 0.3 : 0);
-  const inc = INC * val * (1 + 0.03 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.08 : 1) * (race.me.fx.inc || 1);
+  const inc = INC * (1 + 0.03 * (race.me.spd - 3)) * (race.boost.gel > 0 ? 1.08 : 1) * (race.me.fx.inc || 1);
   race.e = Math.min(cap, race.e + inc);
   race.taps++; race.tapTimes.push(now);
   sfx('tap');
@@ -807,7 +801,6 @@ function update(dt){
   for (const k in r.boost) r.boost[k] = Math.max(0, r.boost[k] - dt);
   r.slow = Math.max(0, r.slow - dt); r.stumble = Math.max(0, r.stumble - dt);
   const drag = DRAG * (r.boost.gel > 0 ? 0.92 : 1) * (r.me.fx.drag || 1);
-  r.over = Math.max(0, (r.over || 0) - dt);
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
@@ -1038,8 +1031,7 @@ function drawHUD(PX){
   const pos = 1 + r.rivals.filter(v => (r.finished ? v.T < r.finishVT : v.d > r.d)).length;
   txt('P' + pos + '/' + (r.rivals.length + 1), W - 4, 52, '#e6f02a', 'right');
   txt(fmtPace(r.v) + '/K', W - 4, 62, '#f6efe1', 'right');
-  { const c = r.tapTimes.length, over = r.over > 0;
-    txt(over ? 'TOO FAST' : c >= 5 ? 'RHYTHM ' + c + '/S' : c + ' TAP/S', W - 4, 72, over ? '#ff8a7a' : c >= 5 ? '#7fe07a' : '#b7aec2', 'right'); }
+  txt(r.tapTimes.length + ' TAP/S', W - 4, 72, '#b7aec2', 'right');
   // messages
   r.msgs.forEach((m, i) => {
     const y = 96 + Math.round(OFF * 0.5) - Math.round(m.t * 14) - i * 12;
@@ -1050,7 +1042,7 @@ function drawHUD(PX){
     txt(String(c), W / 2, 84 + Math.round(OFF * 0.5), '#e6f02a', 'center', 24);
     txt('GET READY', W / 2, 114 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
   } else if (r.vt < 30 && !r.finished){
-    if (Math.floor(G.time * 3) % 2) txt('FIND YOUR RHYTHM!', W / 2, 108 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
+    if (Math.floor(G.time * 3) % 2) txt('TAP RUN FAST!', W / 2, 108 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
   }
 }
 
