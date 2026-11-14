@@ -4,6 +4,7 @@ An 8-bit mobile web game for the Zuiderpark Wolf group. Pick a runner card (Juli
 (5K total) that start and finish at the shimmering hall in Zuiderpark.
 
 - Tap **RUN** as fast as you can. Faster tapping means a faster 5K time.
+- Runner stats: FAST twitch (taps push harder), SLOW twitch (speed fades slower), JMP and BST.
 - Tap **JUMP** (or the game screen) to grab boosts floating above the path:
   beetroot (faster for a while), Nomio shots (instant surge) and gels (every tap counts more).
 - Jump over puddles and geese, they slow you down.
