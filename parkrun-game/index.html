@@ -837,6 +837,7 @@ function buildSeasonArt(){
     autumn: T([['#a8321e','#d9502e','#f08a5a'], ['#c9631e','#e8902e','#f6c25a'], ['#b8901e','#e8c43a','#fff08a'], ['#7a4a22','#a8682e','#d09a4a']]),
     winter: T(['bare', 'bare', 'bare', 'bare']),
   };
+  IMG.willows = Object.fromEntries(['spring', 'summer', 'autumn', 'winter'].map(k => [k, [0, 1].map(v => buildWillow(k, v))]));
   IMG.tallTrees = Object.fromEntries(['spring', 'summer', 'autumn', 'winter'].map(k => [k, [0, 1, 2].map(v => buildTallTree(k, [112, 100, 120][v], v))]));
   IMG.cloudSets = {
     grey: [[buildCloud(0, false, ['#5a7090','#e8edf3','#c4ced9']), buildCloud(1, false, ['#5a7090','#e8edf3','#c4ced9'])], IMG.cloudsSun],
@@ -1015,6 +1016,88 @@ function drawLandmark(camX, part){
     }
   }
 }
+/* ---------- landmark: the lake with three fountains after 2K (both laps) ---------- */
+const LAKES = [2090, 4590].map(m => m * PXM), LAKE_W = 270 * PXM;
+function buildWillow(season, v){
+  const w = 46, h = 50, c = mk(w, h), g = c.getContext('2d');
+  const cols = { spring:['#5f9a3a','#8cc65a','#c4ec8a'], summer:['#3f7a34','#5e9e44','#94c86a'], autumn:['#8a7a2a','#c4a83a','#e8d06a'], winter:['#6a5a3a','#8a7448','#f4f8ff'] }[season];
+  g.fillStyle = INK; g.fillRect(21, 26, 5, 24); g.fillStyle = '#5a3a26'; g.fillRect(22, 26, 3, 24);
+  const bare = season === 'winter';
+  for (let x = 2; x < w - 2; x++){
+    const dome = Math.round(6 + Math.pow(Math.abs(x - w / 2) / (w / 2), 2) * 14);
+    const len = Math.round(30 + hash(x * 7 + v) * 12 - Math.abs(x - w / 2) * 0.2);
+    for (let y = dome; y < dome + len && y < h - 3; y++){
+      const r = hash(x * 131 + y * 17 + v);
+      if (bare){ if (x % 3 === 0 && r < 0.55){ g.fillStyle = r < 0.08 ? cols[2] : cols[0]; g.fillRect(x, y, 1, 1); } continue; }
+      if (x % 2 === 1 && y > dome + 6 && r < 0.4) continue;        // drooping strands
+      g.fillStyle = y < dome + 2 ? cols[2] : r < 0.25 ? cols[0] : r < 0.85 ? cols[1] : cols[2];
+      g.fillRect(x, y, 1, 1);
+    }
+  }
+  return c;
+}
+function drawLake(camX, time){
+  const S = SZ(), frozen = !!S.ice;
+  for (const lx of LAKES){
+    const x0 = Math.round(lx - camX), x1 = x0 + Math.round(LAKE_W);
+    if (x1 < -60 || x0 > W + 60) continue;
+    const top = 118, bot = PATH_TOP - 4;
+    // far shore and trees reflected in the water
+    for (let x = Math.max(0, x0); x < Math.min(W, x1); x++){
+      const e = Math.min(x - x0, x1 - x), taper = e < 28 ? Math.round((28 - e) * (28 - e) / 40) : 0;
+      const yt = top + taper; if (yt >= bot) continue;
+      const wx = x + camX;
+      ctx.fillStyle = frozen ? '#dfeaf3' : S.weather === 'sun' ? '#2f6fb0' : '#3c76ac'; ctx.fillRect(x, yt, 1, bot - yt);
+      ctx.fillStyle = frozen ? '#c4d6e6' : '#2a5a3a'; ctx.fillRect(x, yt, 1, 1 + (hash(Math.floor(wx / 3)) < 0.5 ? 1 : 0));   // far bank
+      if (!frozen){
+        if (hash(Math.floor(wx / 4) * 7) < 0.6){ ctx.fillStyle = 'rgba(40,90,50,.45)'; ctx.fillRect(x, yt + 2, 1, 3 + Math.floor(hash(Math.floor(wx / 4)) * 5)); }   // reflections
+        const ry = yt + 6 + Math.floor(hash(Math.floor(wx / 9) * 3) * Math.max(1, bot - yt - 8));
+        if ((Math.floor(wx / 9) + Math.floor(time * 2)) % 3 === 0 && (wx % 9) < 4){ ctx.fillStyle = '#9fd0f2'; ctx.fillRect(x, ry, 1, 1); }   // ripples
+      } else if (hash(wx * 3) < 0.05){ ctx.fillStyle = '#ffffff'; ctx.fillRect(x, yt + 3 + Math.floor(hash(wx) * (bot - yt - 5)), 2, 1); }
+    }
+    // three fountains (off when the lake is frozen)
+    if (!frozen) [[0.48, 34], [0.66, 44], [0.84, 26]].forEach(([f, hgt], i) => {
+      const fx = Math.round(x0 + LAKE_W * f), base = bot - 9 + i % 2 * 2;
+      if (fx < -20 || fx > W + 20) return;
+      const H2 = Math.round(hgt + Math.sin(time * 3 + i) * 2), tick = Math.floor(time * 12);
+      // spray plume: thin jet at the bottom, wider and misty towards the top
+      for (let j = 0; j < H2; j++){
+        const fr = j / H2, wid = Math.round(0.5 + Math.pow(fr, 1.4) * 4);
+        for (let x = -wid; x <= wid; x++){
+          const r = hash(j * 37 + x * 11 + tick * 7 + i * 101), edge = Math.abs(x) / (wid + 0.5);
+          if (r > 0.95 - edge * 0.55) continue;
+          ctx.fillStyle = edge < 0.35 ? 'rgba(255,255,255,.95)' : 'rgba(225,242,255,.7)';
+          ctx.fillRect(fx + x, base - j, 1, 1);
+        }
+      }
+      for (let k = 0; k < 16; k++){   // droplets falling back down on both sides
+        const ph = (time * 1.2 + k / 16 + i * 0.3) % 1, side = k % 2 ? 1 : -1;
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        ctx.fillRect(Math.round(fx + side * (3 + ph * 7 + (k % 3))), Math.round(base - H2 + ph * H2 * 0.95 + ph * ph * 6), 1, 1 + (k % 4 === 0 ? 1 : 0));
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(fx - 7, base, 14, 1); ctx.fillRect(fx - 4, base - 1, 8, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(fx - 10, base + 1, 20, 1);
+    });
+    // swans (in winter they stand on the ice)
+    [[0.22, 0], [0.3, 1]].forEach(([f, k]) => {
+      const sx = Math.round(x0 + LAKE_W * f + Math.sin(time * 0.3 + k) * 8), sy = top + 14 + k * 5;
+      if (sx < -10 || sx > W + 10) return;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(sx, sy, 5, 2); ctx.fillRect(sx + 4, sy - 3, 1, 3); ctx.fillRect(sx + 4, sy - 3, 2, 1);
+      ctx.fillStyle = '#f08a24'; ctx.fillRect(sx + 6, sy - 3, 1, 1);
+    });
+    // weeping willows at both ends, low railing on the lake side of the path and the blue bench
+    const wl = IMG.willows && IMG.willows[SEASON];
+    if (wl){ ctx.drawImage(wl[0], x0 - 26, PATH_TOP - 1 - wl[0].height); ctx.drawImage(wl[1], x1 - 20, PATH_TOP - 1 - wl[1].height); }
+    ctx.fillStyle = INK; ctx.fillRect(x0 + 18, PATH_TOP - 6, x1 - x0 - 36, 1);
+    for (let x = x0 + 18; x < x1 - 18; x += 16) ctx.fillRect(x, PATH_TOP - 6, 1, 5);
+    const bx = Math.round(x0 + LAKE_W * 0.6);
+    ctx.fillStyle = INK; ctx.fillRect(bx - 1, PATH_TOP - 9, 20, 7);
+    ctx.fillStyle = '#2f5fc8'; ctx.fillRect(bx, PATH_TOP - 8, 18, 2); ctx.fillRect(bx, PATH_TOP - 5, 18, 1);
+    ctx.fillStyle = '#4a7ae0'; ctx.fillRect(bx, PATH_TOP - 8, 18, 1);
+    ctx.fillStyle = INK; ctx.fillRect(bx + 1, PATH_TOP - 4, 1, 3); ctx.fillRect(bx + 16, PATH_TOP - 4, 1, 3);
+    if (frozen){ ctx.fillStyle = '#f4f8ff'; ctx.fillRect(bx, PATH_TOP - 9, 18, 1); }
+  }
+}
 // black park railing with X crosses between the posts
 function railing(x0, x1, base){
   ctx.fillStyle = INK;
@@ -1065,6 +1148,7 @@ function drawScene(camX, time, sunset){
   // back lawn
   ctx.fillStyle = P.back[0]; ctx.fillRect(0, 134, W, PATH_TOP - 134);
   ctx.fillStyle = P.back[1]; ctx.fillRect(0, 134, W, 1);
+  drawLake(camX, time);
   drawLandmark(camX, 'trees');
   drawLandmark(camX, 'back');
   // props that live in the world (1:1 with the path)
