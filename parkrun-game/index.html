@@ -52,13 +52,8 @@ body{
 #muteBtn{right:max(8px,env(safe-area-inset-right,0px))}
 #exitBtn{left:max(8px,env(safe-area-inset-left,0px))}
 #seasonBtn{left:max(8px,env(safe-area-inset-left,0px))}
+#app:not([data-screen="race"]) #game{cursor:pointer}
 #app[data-screen="race"] #seasonBtn{display:none}
-.season-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.season-grid .btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;font-size:10px}
-.season-grid .btn[aria-pressed="true"]{background:var(--hivis)}
-.season-grid .btn.wide{grid-column:1 / -1}
-.season-grid .ico{font-size:30px;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-.season-grid small{font-family:var(--f-body);font-size:16px;text-transform:none;letter-spacing:0}
 #app:not([data-screen="race"]) #exitBtn{display:none}
 #app[data-screen="race"] #muteBtn,#app[data-screen="race"] #exitBtn{top:auto;bottom:14px}
 .hud-btn:focus-visible,.btn:focus-visible,.card:focus-visible,.look:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
@@ -383,13 +378,6 @@ p{margin:0;max-width:60ch}
   <button class="hud-btn poster-close" id="posterClose" type="button" aria-label="Close poster">✕ CLOSE</button>
   <button class="hud-btn poster-report" id="posterReport" type="button" hidden>REPORT PHOTO</button>
 </div>
-<div class="help" id="seasonModal" hidden role="dialog" aria-modal="true" aria-labelledby="seasonTitle">
-  <div class="help-box">
-    <div class="club-head"><h2 id="seasonTitle">SEASON</h2><button class="btn alt" id="seasonClose" type="button">CLOSE</button></div>
-    <p>Pick the weather for Zuiderpark. Just for the looks: the race plays exactly the same.</p>
-    <div class="season-grid" id="seasonGrid"></div>
-  </div>
-</div>
 <div class="help" id="clubModal" hidden role="dialog" aria-modal="true" aria-labelledby="clubTitle">
   <div class="help-box club-box">
     <div class="club-head"><h2 id="clubTitle">CLUB</h2><button class="btn alt" id="clubClose" type="button">CLOSE</button></div>
@@ -401,7 +389,7 @@ p{margin:0;max-width:60ch}
     <canvas id="game" width="320" height="192" aria-label="Zuiderpark parkrun game scene"></canvas>
     <button class="hud-btn" id="exitBtn" type="button">EXIT</button>
     <button class="hud-btn" id="muteBtn" type="button" aria-pressed="false">SOUND ON</button>
-    <button class="hud-btn" id="seasonBtn" type="button" aria-haspopup="dialog">SEASON</button>
+    <button class="hud-btn" id="seasonBtn" type="button">SEASON</button>
   </div>
   <div id="panel">
     <section id="scr-title">
@@ -1112,21 +1100,15 @@ function music(){
 function setSeasonLabel(){
   const b = $('#seasonBtn'); if (!b) return;
   b.textContent = (seasonChoice === 'random' ? 'RANDOM: ' : '') + SEASONS[SEASON].name;
-  b.setAttribute('aria-label', 'Season: ' + (seasonChoice === 'random' ? 'random, now ' : '') + SEASONS[SEASON].name.toLowerCase() + '. Change season');
-}
-const SEASON_NOTES = { random:'A new season every race', spring:'Blossom and petals', summer:'Sun and butterflies', autumn:'Falling leaves and drizzle', winter:'Snow and icy puddles' };
-function openSeasons(){
-  const opts = ['random', ...SEASON_KEYS];
-  $('#seasonGrid').innerHTML = opts.map(k => `<button class="btn alt${k === 'random' ? ' wide' : ''}" type="button" data-season="${k}" aria-pressed="${seasonChoice === k}">
-    <span class="ico" aria-hidden="true">${k === 'random' ? '🎲' : SEASONS[k].icon}</span>${k === 'random' ? 'RANDOM' : SEASONS[k].name}<small>${SEASON_NOTES[k]}</small></button>`).join('');
-  $('#seasonModal').hidden = false; $('#seasonClose').focus();
+  b.setAttribute('aria-label', 'Season: ' + SEASONS[SEASON].name.toLowerCase() + '. Tap for the next season');
 }
 function setSeason(k){
   seasonChoice = k; store.set('season', k);
   SEASON = k === 'random' ? SEASON_KEYS[Math.floor(Math.random() * 4)] : k;
-  setSeasonLabel(); sfx('select');
-  document.querySelectorAll('#seasonGrid [data-season]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.season === k)));
+  setSeasonLabel(); sfx('select'); G.seasonFlash = G.time;
 }
+// tap the top banner (or the SEASON button) to go to the next season: spring, summer, autumn, winter
+function nextSeason(){ setSeason(SEASON_KEYS[(SEASON_KEYS.indexOf(SEASON) + 1) % 4]); }
 function setMuteLabel(){ const b = $('#muteBtn'); b.textContent = AU.muted ? 'SOUND OFF' : 'SOUND ON'; b.setAttribute('aria-pressed', String(AU.muted)); }
 
 /* ---------- game state ---------- */
@@ -1324,7 +1306,11 @@ function shadow(x, foot, w){ ctx.fillStyle = 'rgba(20,14,26,.35)'; ctx.fillRect(
 
 function render(){
   renderScene();
-  if (G.screen !== 'race'){ drawWeather(G.time); ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false; }
+  if (G.screen !== 'race'){
+    drawWeather(G.time); ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
+    const age = G.time - (G.seasonFlash ?? -9);
+    if (age >= 0 && age < 1.2) txt(SEASONS[SEASON].name, Math.round(W / 2), Math.round(CH * 0.5) + (G.screen === 'title' ? 20 : 0), '#e6f02a', 'center', 16);
+  }
 }
 function renderScene(){
   ctx.imageSmoothingEnabled = false;
@@ -2583,13 +2569,11 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#help').
 $('#againBtn').addEventListener('click', startRace);
 $('#changeBtn').addEventListener('click', () => { show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
 $('#exitBtn').addEventListener('click', () => { AU.playing = false; releaseWake(); race = null; show('select'); renderCards(); });
-$('#seasonBtn').addEventListener('click', () => { audioInit(); openSeasons(); });
-$('#seasonClose').addEventListener('click', () => { $('#seasonModal').hidden = true; $('#seasonBtn').focus(); });
-$('#seasonModal').addEventListener('click', e => {
-  if (e.target.id === 'seasonModal') return void ($('#seasonModal').hidden = true);
-  const b = e.target.closest('[data-season]'); if (b){ setSeason(b.dataset.season); setTimeout(() => { $('#seasonModal').hidden = true; }, 250); }
+$('#seasonBtn').addEventListener('click', e => { e.stopPropagation(); audioInit(); nextSeason(); });
+$('#stage').addEventListener('click', e => {
+  if (G.screen === 'race' || e.target.closest('button')) return;
+  audioInit(); nextSeason();
 });
-window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#seasonModal').hidden) $('#seasonModal').hidden = true; });
 $('#muteBtn').addEventListener('click', () => { AU.muted = !AU.muted; store.set('muted', AU.muted); setMuteLabel(); audioInit(); });
 $('#copyBtn').addEventListener('click', () => {
   const done = ok => { $('#copyMsg').textContent = ok ? 'Result copied. Paste it in the group chat.' : 'Select the text below and copy it.'; };
