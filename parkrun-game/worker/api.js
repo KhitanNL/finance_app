@@ -622,8 +622,16 @@ async function submitResult(req, env) {
   let b; try { b = await req.json(); } catch { return bad('bad json'); }
   const club = await clubBySlug(env, b.club);
   if (!club) return bad('Club not found', 404);
-  const me = await devicePlayer(req, env, club.id);
-  if (!me) return bad('Pick a player name first.', 401);
+  // No player on this phone (for example before nicknames go live): the time is kept under "Unknown player".
+  let me = await devicePlayer(req, env, club.id), anon = false;
+  if (!me) {
+    anon = true;
+    me = await env.DB.prepare('SELECT * FROM players WHERE club_id = ? AND is_unknown = 1').bind(club.id).first();
+    if (!me) {
+      await env.DB.prepare(`INSERT OR IGNORE INTO players (club_id, name, name_key, is_unknown, created_at) VALUES (?, 'Unknown player', 'unknown player', 1, ?)`).bind(club.id, Date.now()).run();
+      me = await env.DB.prepare('SELECT * FROM players WHERE club_id = ? AND is_unknown = 1').bind(club.id).first();
+    }
+  }
   const mode = MODES.has(b.mode) ? b.mode : null;
   const time = int(b.time_s, 1, 36000), taps = int(b.taps, 0, 100000), cad = int(b.max_cad, 0, 1000);
   const ch = await env.DB.prepare('SELECT id FROM characters WHERE id = ? AND club_id = ? AND removed = 0 AND banned = 0').bind(int(b.character_id, 1, 1e9), club.id).first();
@@ -643,10 +651,10 @@ async function submitResult(req, env) {
     env.DB.prepare('SELECT 1 FROM results WHERE player_id = ? AND day = ? LIMIT 1').bind(me.id, yday).first(),
   ]);
   const playerPb = !pb?.best || time < pb.best;
-  const points = POINTS.race + (playerPb ? POINTS.pb : 0) + (raced ? POINTS.streak : 0);
+  const points = anon ? 0 : POINTS.race + (playerPb ? POINTS.pb : 0) + (raced ? POINTS.streak : 0);
   await env.DB.prepare('INSERT INTO results (club_id, character_id, player_id, mode, time_s, taps, max_cad, day, created_at, visitor, points) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
     .bind(club.id, ch.id, me.id, mode, time, taps, cad, day, Date.now(), v, points).run();
-  return json({ ok: true, day, points, player: me.name,
+  return json({ ok: true, day, points, player: anon ? null : me.name,
     player_pb: playerPb, prev_player_pb: pb?.best || null,
     character_pb: !charPb?.best || time < charPb.best, prev_character_pb: charPb?.best || null,
     character_record: !rec?.best || time < rec.best, prev_character_record: rec?.best || null }, 201);

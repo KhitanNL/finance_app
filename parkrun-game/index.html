@@ -522,8 +522,11 @@ function emojiCover(ch){
   return c.toDataURL('image/png');
 }
 // emoji runners are shown as text (iPhones do not draw colour emoji on a canvas)
-// Secret runner: Jony (Draakie) is always last in RUNNERS and stays hidden until unlocked
-let secretUnlocked = !!store.get('draakie', false);
+// Jony (Draakie) is always last in RUNNERS. He is visible (next to Julian) but LOCKED until Mao says so.
+const secretUnlocked = true;
+// Runners that are shown in the carousel but cannot be raced yet (remove an id to release that runner).
+const LOCKED_RUNNERS = new Set(['draakie']);
+const isLocked = i => !!(RUNNERS[i] && LOCKED_RUNNERS.has(RUNNERS[i].id));
 const hasSecret = () => RUNNERS.length > 1 && RUNNERS[RUNNERS.length - 1].id === 'draakie';
 const visibleCount = () => hasSecret() && !secretUnlocked ? RUNNERS.length - 1 : RUNNERS.length;
 // Carousel order (runner indices). Once unlocked, Draakie sits right next to Julian, at the far left.
@@ -1038,7 +1041,7 @@ function newRace(){
     if (nearBuilding(d) || items.some(i => Math.abs(i.d - d) < 40) || crowds.some(c => Math.abs(c.d - d) < 50)) continue;
     obstacles.push({ d, type: rng() < 0.5 ? 'puddle' : 'goose', hit:false });
   }
-  const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel && i < visibleCount()).map(i => ({
+  const rivals = RUNNERS.map((r, i) => i).filter(i => i !== G.sel && i < visibleCount() && !isLocked(i)).map(i => ({
     i, T: RUNNERS[i].target + (rng() - 0.5) * 60, ph: rng() * 6, d: 0, lane: 0, anim: rng() * 4
   }));
   race = {
@@ -1378,32 +1381,36 @@ function show(screen){
 }
 async function submitResult(r, t){
   const box = $('#clubBoardWrap'); box.hidden = true;
-  if (!NET.online || !r.me.dbId || !NET.me) return;
+  if (!NET.online || !r.me.dbId || (!NET.me && playersLive())) return;
   try {
     const s = await apiCall('/api/results', { method:'POST', json:{ club: clubSlug, character_id: r.me.dbId, mode:'classic', time_s: Math.round(t), taps: r.taps, max_cad: r.maxCad } });
     if (s.ok){
-      if (s.data.character_record){ r.me.clubBest = Math.round(t); r.me.recordBy = NET.me.name; }
+      if (s.data.character_record){ r.me.clubBest = Math.round(t); r.me.recordBy = NET.me ? NET.me.name : null; }
       // badges: NEW PB = the player's own game PB (any runner); CHARACTER RECORD = fastest ever with this runner in the club
-      const extra = [s.data.player_pb && ['NEW PB!', 'pb'], s.data.character_record && ['CHARACTER RECORD!', 'pb'], !s.data.player_pb && s.data.character_pb && s.data.prev_character_pb && ['PB AS ' + r.me.name, '']].filter(Boolean);
+      const extra = !NET.me ? [s.data.character_record && ['NEW CLUB RECORD!', 'pb']].filter(Boolean)
+        : [s.data.player_pb && ['NEW PB!', 'pb'], s.data.character_record && ['CHARACTER RECORD!', 'pb'], !s.data.player_pb && s.data.character_pb && s.data.prev_character_pb && ['PB AS ' + r.me.name, '']].filter(Boolean);
       const bd = $('#badges'); bd.querySelectorAll('.badge.pending').forEach(x => x.remove());
       bd.insertAdjacentHTML('afterbegin', extra.map(([b, c]) => `<span class="badge ${c}">${esc(b)}</span>`).join(''));
       const prevRow = [...$('#resGrid').querySelectorAll('div')].find(d => /Your PB before/.test(d.textContent));
-      if (prevRow) prevRow.querySelector('dd').textContent = s.data.prev_player_pb ? fmt(s.data.prev_player_pb) : 'none';
+      if (prevRow){ if (NET.me) prevRow.querySelector('dd').textContent = s.data.prev_player_pb ? fmt(s.data.prev_player_pb) : 'none';
+        else { prevRow.querySelector('dt').textContent = 'Club record before'; prevRow.querySelector('dd').textContent = s.data.prev_character_record ? fmt(s.data.prev_character_record) : 'none'; } }
       const L = lastShare.split('\n');
-      if (s.data.player_pb && !/NEW PB/.test(L[1])) L[1] += ' NEW PB!';
-      if (s.data.character_record) L[1] += ' Character record!';
+      if (NET.me && s.data.player_pb && !/NEW PB/.test(L[1])) L[1] += ' NEW PB!';
+      if (s.data.character_record) L[1] += NET.me ? ' Character record!' : ' New club record!';
       lastShare = L.join('\n');
     }
-    const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic&group=player`);
+    const grp = NET.me ? 'player' : 'character';
+    const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic&group=${grp}`);
     if (!lb.ok) return;
-    $('#clubBoard').innerHTML = boardHtml(lb.data.today, 'player');
-    $('#clubBoardAll').innerHTML = boardHtml((lb.data.all || []).slice(0, 5), 'player');
-    $('#clubBoardNote').textContent = s.ok ? 'Saved for ' + NET.me.name + ' in ' + NET.club.name + '. +' + s.data.points + ' points.' : (s.data.error || 'This time was not saved.');
+    $('#clubBoard').innerHTML = boardHtml(lb.data.today, grp, x => !NET.me && x.character_id === r.me.dbId);
+    $('#clubBoardAll').innerHTML = boardHtml((lb.data.all || []).slice(0, 5), grp, x => !NET.me && x.character_id === r.me.dbId);
+    $('#clubBoardNote').textContent = s.ok ? (NET.me ? 'Saved for ' + NET.me.name + ' in ' + NET.club.name + '. +' + s.data.points + ' points.' : 'Your time is saved for ' + NET.club.name + '.') : (s.data.error || 'This time was not saved.');
     box.hidden = false;
   } catch(e){}
 }
 function startRace(){
   if (G.screen === 'select' && G.teaser >= 0) return;   // teasers are not playable
+  if (isLocked(G.sel)) return;                            // locked runners are not playable yet
   audioInit();
   newRace();
   trackEvent('race_start', { runner: race.me.id, mode: 'classic' });
@@ -1443,11 +1450,12 @@ function renderCards(){
     const r = RUNNERS[i];
     el.className = 'cover'; el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
-    el.innerHTML = r.emoji ? `<div class="emo" aria-hidden="true">${esc(r.emoji)}</div>` : `<img src="${esc(r.photo)}" alt="" draggable="false">`;
+    el.innerHTML = (r.emoji ? `<div class="emo" aria-hidden="true">${esc(r.emoji)}</div>` : `<img src="${esc(r.photo)}" alt="" draggable="false">`) + (isLocked(i) ? '<span class="soon">COMING SOON</span>' : '');
+    if (isLocked(i)){ el.classList.add('teaser'); el.setAttribute('aria-label', r.full + ', coming soon'); }
     wrap.appendChild(el);
   });
   $('#dots').innerHTML = flowOrder().map(() => '<i></i>').join('');
-  G.teaser = -1; $('#goBtn').disabled = false; flowPos = posOf(G.sel); layoutFlow(); renderInfo();
+  G.teaser = -1; $('#goBtn').disabled = isLocked(G.sel); $('#goBtn').textContent = isLocked(G.sel) ? 'LOCKED' : 'START RACE'; flowPos = posOf(G.sel); layoutFlow(); renderInfo();
 }
 function renderInfo(){
   const r = RUNNERS[G.sel], i = G.sel;
@@ -1458,7 +1466,7 @@ function renderInfo(){
   const acts = '<button class="mini" type="button" data-ra="profile">' + (mine ? 'MY RUNNER CARD' : 'RUNNER CARD') + '</button>';
   $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${esc(r.name)}</h3><p class="known">${esc(r.known)}</p>
     <dl class="stats"><dt>FAST TWITCH</dt><dd>${pips(r.spd)}</dd><dt>SLOW TWITCH</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JUMP</dt><dd>${pips(r.jmp)}</dd></dl>
-    ${r.verse ? '<p class="story verse">' + esc(r.verse) + '</p>' : ''}${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">${shared(r) ? 'CLUB RECORD' : 'BEST ON THIS PHONE'} ${recordOf(r) ? fmt(recordOf(r)) + (shared(r) && r.recordBy ? ' <small>by ' + esc(r.recordBy) + '</small>' : '') : '--:--'}</p>
+    ${r.verse ? '<p class="story verse">' + esc(r.verse) + '</p>' : ''}${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${isLocked(i) ? '<b>COMING SOON.</b> Not playable yet, stay tuned! ' : ''}${esc(r.perk)}</p><p class="pb">${shared(r) ? 'CLUB RECORD' : 'BEST ON THIS PHONE'} ${recordOf(r) ? fmt(recordOf(r)) + (shared(r) && r.recordBy && r.recordBy !== 'Unknown player' ? ' <small>by ' + esc(r.recordBy) + '</small>' : '') : '--:--'}</p>
     ${acts ? '<div class="mini-actions">' + acts + '</div>' : ''}`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
@@ -1480,16 +1488,9 @@ function layoutFlow(){
 }
 /* Secret: on the first runner, press < five times to unlock Jony (Draakie) */
 let secretTaps = 0;
-function prevPress(){
-  if (!secretUnlocked && hasSecret() && flowOrder()[Math.round(flowPos)] === 0){
-    secretTaps++;
-    if (secretTaps >= 5){ unlockSecret(); return; }
-    if (secretTaps >= 3) sfx('beep');
-  } else secretTaps = 0;
-  flowTo(Math.round(flowPos) - 1);
-}
+function prevPress(){ flowTo(Math.round(flowPos) - 1); }
 function unlockSecret(){
-  secretUnlocked = true; secretTaps = 0; store.set('draakie', true);
+  secretTaps = 0;
   sfx('finish'); try { navigator.vibrate && navigator.vibrate([40, 40, 80]); } catch(e){}
   renderCards(); flowTo(0);
   $('#flowTag').textContent = 'SECRET RUNNER UNLOCKED! Gelletje!!!';
@@ -1566,7 +1567,7 @@ function showTeaser(k, pos){
   const go = $('#goBtn'); go.disabled = true; go.textContent = 'LOCKED';
 }
 function choose(i, rerender){
-  G.teaser = -1; const go = $('#goBtn'); if (go){ go.disabled = false; go.textContent = 'START RACE'; }
+  G.teaser = -1; const go = $('#goBtn'); if (go){ go.disabled = isLocked(i); go.textContent = isLocked(i) ? 'LOCKED' : 'START RACE'; }
   if (G.sel !== i){ G.sel = i; store.set('sel.' + clubSlug, i); sfx('select'); }
   const p = posOf(i);
   document.querySelectorAll('#cards .cover').forEach((c, k) => c.setAttribute('aria-selected', String(k === p)));
@@ -1585,8 +1586,9 @@ function showResults(){
   const pos = rows.findIndex(x => x.me) + 1;
   const online = !!(shared(me) && NET.me);
   // offline: one local player per phone, PB over all runners (and per runner for the runner select)
-  const localBest = store.get('pbAll', null), prev = online ? null : localBest;
-  const isPB = !online && (!localBest || myT < localBest);
+  const clubOnline = !!shared(me);   // online the PB / club record badges come from the server
+  const localBest = store.get('pbAll', null), prev = clubOnline ? null : localBest;
+  const isPB = !clubOnline && (!localBest || myT < localBest);
   if (!localBest || myT < localBest) store.set('pbAll', Math.round(myT));
   if (!pbs[me.id] || myT < pbs[me.id]){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
   const who = online ? NET.me.name : null;
@@ -1607,7 +1609,7 @@ function showResults(){
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Your PB before', online ? '...' : prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Your PB before', clubOnline ? '...' : prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${esc(x.name)}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
@@ -1639,6 +1641,11 @@ const myProfile = () => store.get('me.' + clubSlug, null);         // { id: play
 const capToken = () => store.get('cap.' + clubSlug, null);
 const clubLink = () => location.origin + '/c/' + clubSlug;
 const playerName = () => NET.me ? NET.me.name : null;
+// Player nicknames switch on by themselves at 08:00 on 16 Nov 2026 (Amsterdam). Until then the game works like before.
+// Preview earlier on one phone with ?preview=players (and ?preview=off to undo).
+const PLAYERS_LIVE_AT = Date.parse('2026-11-16T08:00:00+01:00');
+(() => { const q = new URLSearchParams(location.search).get('preview'); if (q === 'players') store.set('previewPlayers', true); if (q === 'off') store.set('previewPlayers', false); })();
+const playersLive = () => Date.now() >= PLAYERS_LIVE_AT || !!store.get('previewPlayers', false);
 
 async function apiCall(path, opts = {}, ms = 6000){
   if (!canTryApi) throw new Error('offline');
@@ -1722,7 +1729,8 @@ function renderClubBar(){
 }
 function renderPlayingAs(){
   const el = $('#playingAs'); if (!el) return;
-  el.hidden = !(NET.online && NET.me);
+  el.hidden = !(playersLive() && NET.online && NET.me);
+  $('#meBtn').hidden = !playersLive();
   if (NET.me) $('#playingName').textContent = NET.me.name.toUpperCase();
 }
 async function loadClub(){
@@ -1734,7 +1742,7 @@ async function loadClub(){
   } catch(e){ NET.online = false; NET.club = null; NET.me = null; renderClubBar(); renderPlayingAs(); if (canTryApi) $('#clubSub').textContent = 'Offline: built-in runners'; }
 }
 // Before the runner select: online, every phone needs a player name (and existing users confirm theirs once).
-const needsPlayerName = () => NET.online && NET.club && (!NET.me || NET.me.needs_name);
+const needsPlayerName = () => playersLive() && NET.online && NET.club && (!NET.me || NET.me.needs_name);
 function goSelect(){ show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); }
 // Prefill for the name question: the runner this phone picked most (falls back to the last pick).
 function mostPickedName(){
@@ -1826,7 +1834,7 @@ async function openProfileCard(r, flash){
       ${linked ? `<p class="pc-linked">${linkedToMe ? 'This is you.' : 'The real ' + esc(d.name) + ' plays as <button class="link" type="button" data-pl="' + linked.id + '">' + esc(linked.name) + '</button>.'}</p>` : ''}
       <h3>IN THE GAME</h3>
       <dl class="pc-game">
-        <div class="wide"><dt>${d.online || u ? 'CLUB RECORD WITH THIS RUNNER' : 'BEST ON THIS PHONE'}</dt><dd>${rec ? fmt(rec.time_s) + (rec.by ? ' by ' + (rec.by_id ? `<button class="link" type="button" data-pl="${rec.by_id}">${esc(rec.by)}</button>` : esc(rec.by)) : '') : '--:--'}</dd></div>
+        <div class="wide"><dt>${d.online || u ? 'CLUB RECORD WITH THIS RUNNER' : 'BEST ON THIS PHONE'}</dt><dd>${rec ? fmt(rec.time_s) + (rec.by && rec.by !== 'Unknown player' ? ' by ' + (rec.by_id ? `<button class="link" type="button" data-pl="${rec.by_id}">${esc(rec.by)}</button>` : esc(rec.by)) : '') : '--:--'}</dd></div>
         ${u ? `<div><dt>RACES RUN</dt><dd>${u.races}</dd></div><div><dt>BY PLAYERS</dt><dd>${u.players}</dd></div>
           ${NET.me ? `<div class="wide"><dt>YOUR BEST WITH THIS RUNNER</dt><dd>${u.my_best ? fmt(u.my_best) + ' (' + u.my_races + (u.my_races === 1 ? ' race)' : ' races)') : '--:--'}</dd></div>` : ''}` : ''}
       </dl>
@@ -1874,7 +1882,7 @@ async function openPlayerProfile(id, flash){
   const shoeSlots = ['DAILY', 'TEMPO', 'RACE DAY'].map(s => `<div class="slot"><span>?</span><small>${s}</small></div>`).join('');
   CB().innerHTML = `${flash ? `<p class="ok"><b>${esc(flash)}</b></p>` : ''}
     <div class="pl-top">${avatarHtml(p)}<div class="pc-id"><h3>${esc(p.name.toUpperCase())}</h3>
-      ${p.unknown ? '<p class="pc-tag">Times from before player names existed.</p>' : ''}
+      ${p.unknown ? '<p class="pc-tag">Times from before nicknames existed.</p>' : ''}
       ${linkedR ? `<p class="pc-tag">Is the real <button class="link" type="button" data-rn="${p.linked_character_id}">${esc(linkedR.full)}</button></p>` : ''}
       ${g.favorite ? `<span class="pc-type">FAVOURITE: ${esc(g.favorite.name)}</span>` : ''}</div></div>
     <dl class="pc-game">
@@ -1997,7 +2005,7 @@ function boardHtml(rows, group = 'player', hi){
     const me = NET.me && x.player_id === NET.me.id;
     const label = group === 'player'
       ? `${esc(x.player_name)} <small>as ${esc(x.character_name)}</small>`
-      : `${esc(x.character_name)} <small>by ${esc(x.player_name)}</small>`;
+      : `${esc(x.character_name)}${x.unknown ? '' : ' <small>by ' + esc(x.player_name) + '</small>'}`;
     const target = group === 'player' && !x.unknown ? `data-pid="${x.player_id}"` : `data-cid="${x.character_id}"`;
     return `<li class="tap${me || (hi && hi(x)) ? ' me' : ''}" ${target} role="button" tabindex="0"><span class="pos">${i + 1}</span><span>${label}</span><span class="t">${fmt(x.time_s)}</span></li>`;
   }).join('');
@@ -2029,8 +2037,8 @@ const CLUB_VIEWS = {
       <p><span class="code">${esc(c.join_code)}</span></p>
       <div class="actions"><a class="btn hot" href="${esc(waLink(inviteText()))}" target="_blank" rel="noopener" data-track="invite">WHATSAPP INVITE</a>
         <button class="btn alt" type="button" data-cv="copylink">COPY LINK</button></div><p class="note" id="cbMsg" aria-live="polite"></p>
-      <h3>YOU</h3>
-      <div class="actions">${NET.me ? '<button class="btn alt" type="button" data-cv="me">MY PLAYER PROFILE</button>' : '<button class="btn hot" type="button" data-cv="name">PICK A PLAYER NAME</button><button class="btn alt" type="button" data-cv="recover">RECOVERY CODE</button>'}</div>
+      ${playersLive() ? `<h3>YOU</h3>
+      <div class="actions">${NET.me ? '<button class="btn alt" type="button" data-cv="me">MY PLAYER PROFILE</button>' : '<button class="btn hot" type="button" data-cv="name">CREATE YOUR NICKNAME</button><button class="btn alt" type="button" data-cv="recover">RECOVERY CODE</button>'}</div>` : ''}
       <h3>LEADERBOARD</h3><div class="actions"><button class="btn alt" type="button" data-cv="board">SHOW LEADERBOARD</button></div>
       ${NET.captain ? `<h3>CAPTAIN</h3><p class="note">You are the captain. Tap a runner to edit it, remove it, or make a claim code so the real person can link to it. Keep your captain link private.</p>
         <div class="actions"><button class="btn alt" type="button" data-cv="addrunner">ADD RUNNER</button><button class="btn alt" type="button" data-cv="reports">REPORTS</button><button class="btn alt" type="button" data-cv="copycap">COPY CAPTAIN LINK</button></div>` : ''}
@@ -2051,7 +2059,7 @@ const CLUB_VIEWS = {
     CB().innerHTML = `<form id="createForm">
       <label>Club name<input id="cName" maxlength="40" required placeholder="Wolfpack Westbroek"></label>
       <label>Home course<input id="cCourse" maxlength="60" placeholder="Westbroekpark, Den Haag"></label>
-      <label>Your player name (captain)<input id="cCaptain" maxlength="20" minlength="2" required></label>
+      <label>Your nickname (captain)<input id="cCaptain" maxlength="20" minlength="2" required></label>
       <label>Email to recover your captain link (optional)<input id="cEmail" type="email" maxlength="120"></label>
       <label class="check"><span>Club colour</span><input id="cColor" type="color" value="#f26a1b"></label>
       <p class="note">No passwords: you get a private captain link to manage the club. Keep it safe. You are also added as the first runner.</p>
@@ -2079,10 +2087,10 @@ const CLUB_VIEWS = {
   // "What's your player name?" before the runner select
   name(){
     const migrated = !!NET.me;
-    $('#clubTitle').textContent = 'PLAYER NAME';
-    CB().innerHTML = `<form id="nameForm"><p class="lead-dark">${migrated ? 'Wolfpack Run now keeps <b>you</b> (the player) apart from the runner you race as. Please check your player name.' : "What's your player name?"}</p>
-      <p class="note">Your name on the leaderboards, for example "Mao (as Jordi) 17:52". You can race as any runner in ${esc(NET.club.name)}.</p>
-      <label>Player name (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required autocomplete="nickname" value="${esc(migrated ? NET.me.name : mostPickedName())}"></label>
+    $('#clubTitle').textContent = 'YOUR NICKNAME';
+    CB().innerHTML = `<form id="nameForm"><p class="lead-dark">${migrated ? 'Wolfpack Run now keeps <b>you</b> apart from the runner you race as. Please check your nickname.' : '<b>Create your nickname.</b> This is you, the player.'}</p>
+      <p class="note">Then pick any runner from ${esc(NET.club.name)} to race as. Leaderboards show both, for example "Mao (as Jordi) 17:52". Your points and streaks are yours, whichever runner you pick.</p>
+      <label>Your nickname (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required autocomplete="nickname" value="${esc(migrated ? NET.me.name : mostPickedName())}"></label>
       <p class="err" id="plErr" aria-live="polite"></p>
       <div class="actions"><button class="btn hot" type="submit">${migrated ? "THAT'S ME" : "LET'S GO"}</button></div>
       ${migrated ? '' : '<p class="note">Played on another phone before? <button class="link" type="button" data-cv="recover">Use your recovery code.</button></p>'}</form>`;
@@ -2168,7 +2176,7 @@ const CLUB_VIEWS = {
     $('#clubTitle').textContent = 'EDIT PLAYER';
     const runners = NET.characters.filter(c => c.photo);
     CB().innerHTML = `<form id="plForm">
-      <label>Player name (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required value="${esc(p.name)}"></label>
+      <label>Your nickname (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required value="${esc(p.name)}"></label>
       <h3>AVATAR</h3><p class="note">Pick a runner's photo, or upload your own small photo.</p>
       <div class="av-pick" role="radiogroup" aria-label="Avatar">
         <label class="av-opt"><input type="radio" name="av" value="none" ${!p.avatar_character_id && !p.avatar_custom ? 'checked' : ''}><span class="av ini">${esc(p.name.slice(0, 2).toUpperCase())}</span></label>
@@ -2233,7 +2241,7 @@ const CLUB_VIEWS = {
     CB().innerHTML = `<div class="pc-preview" aria-label="Live preview of the runner card"><h3>PREVIEW</h3><div id="pPreview"></div></div>
       <form id="profForm">
       ${!full && editing ? '<p class="note">You are linked to this runner: you can change the photo, tagline, story and real PBs. Name and game stats are set by the captain.</p>' : ''}
-      <div class="two"><label>Runner name<input id="pName" maxlength="40" required ${dis} value="${esc(c.name || (opt.thisIsMe && NET.me ? NET.me.name : ''))}"></label><label>Nickname in game<input id="pNick" maxlength="16" ${dis} value="${esc(c.nickname || '')}"></label></div>
+      <div class="two"><label>Runner name<input id="pName" maxlength="40" required ${dis} value="${esc(c.name || (opt.thisIsMe && NET.me ? NET.me.name : ''))}"></label><label>Short name in game<input id="pNick" maxlength="16" ${dis} value="${esc(c.nickname || '')}"></label></div>
       <label>Tagline (max 30)<input id="pTag" maxlength="${c.tagline && c.tagline.length > 30 ? c.tagline.length : 30}" placeholder="Mr. 5K" value="${esc(c.tagline || '')}"></label>
       <p class="note">Real-life PBs (shown on the card, never mixed with game times).</p>
       <div class="two"><label>5K PB (required)<input id="pB5" inputmode="numeric" placeholder="18:49" value="${c.pb5k ? fmt(c.pb5k) : ''}" ${legacy ? '' : 'required'}></label><label>10K PB<input id="pB10" inputmode="numeric" placeholder="39:18" value="${c.pb10k ? fmt(c.pb10k) : ''}"></label></div>
@@ -2339,15 +2347,15 @@ const CLUB_VIEWS = {
   },
   async board(){
     $('#clubTitle').textContent = 'LEADERBOARD';
-    let period = 'today', group = store.get('lbgroup', 'player') === 'character' ? 'character' : 'player';
+    let period = 'today', group = !playersLive() || store.get('lbgroup', 'player') === 'character' ? 'character' : 'player';
     CB().innerHTML = `<div class="lb-tabs"><button class="btn alt" type="button" data-lb="today">TODAY</button><button class="btn alt" type="button" data-lb="all">ALL TIME</button></div>
-      <div class="lb-tabs lb-group"><button class="btn alt" type="button" data-lg="player">BY PLAYER</button><button class="btn alt" type="button" data-lg="character">BY RUNNER</button></div>
+      <div class="lb-tabs lb-group" ${playersLive() ? '' : 'hidden'}><button class="btn alt" type="button" data-lg="player">BY PLAYER</button><button class="btn alt" type="button" data-lg="character">BY RUNNER</button></div>
       <ol class="board" id="lbList"><li>Loading...</li></ol><p class="note" id="lbNote"></p><div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button></div>`;
     const cache = {};
     const draw = async () => {
       document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === period)));
       document.querySelectorAll('[data-lg]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lg === group)));
-      $('#lbNote').textContent = group === 'player' ? 'Best time per player, with the runner they raced as.' : 'Best time per runner, with the player who ran it.';
+      $('#lbNote').textContent = !playersLive() ? '' : group === 'player' ? 'Best time per player, with the runner they raced as.' : 'Best time per runner, with the player who ran it.';
       if (!cache[group]){ try { const r = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic&group=${group}`); cache[group] = r.ok ? r.data : null; } catch(e){ cache[group] = null; } }
       if ($('#lbList')) $('#lbList').innerHTML = boardHtml(cache[group] ? cache[group][period] : null, group);
     };
@@ -2490,7 +2498,8 @@ function frame(now){
 buildStatic();
 rebuildRunnerSprites();
 legend();
-renderClubBar();
+renderClubBar(); renderPlayingAs();
+if (PLAYERS_LIVE_AT > Date.now() && PLAYERS_LIVE_AT - Date.now() < 864e5 * 20) setTimeout(() => { renderPlayingAs(); }, PLAYERS_LIVE_AT - Date.now() + 1000);
 loadClub().then(() => {
   if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); } else autoRanks();
   if (document.fonts && document.fonts.load) document.fonts.load('18px "Press Start 2P"').then(() => {

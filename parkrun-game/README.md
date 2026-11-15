@@ -88,6 +88,10 @@ Cloudflare dashboard > Workers & Pages > wolfpack-run > Settings > Variables and
   A CHARACTER (runner) is a roster entry anyone can race as (photo, tagline, story, real-life PBs, game stats, perk).
   Leaderboards show "Mao (as Jordi) 17:52" and can be grouped by player or by runner. The first PRESS START in a
   club asks "What's your player name?".
+- **Launch switch:** nicknames and player screens switch on by themselves at `PLAYERS_LIVE_AT` (08:00 on 16 Nov 2026,
+  Amsterdam) in `index.html`. Before that the game works like v1 and times are saved under "Unknown player".
+  Preview on one phone with `?preview=players` (undo with `?preview=off`).
+- **Locked runners:** ids in `LOCKED_RUNNERS` (now `draakie`) are visible in the carousel but cannot be raced.
 - **This is me:** a player can link to one runner. The captain makes a one-time claim code for that runner and sends it
   to the real person; once linked they can edit its photo, story, tagline and real PBs. Game stats are captain only.
   A player can also add themselves as a new runner (ADD ME AS A RUNNER).
