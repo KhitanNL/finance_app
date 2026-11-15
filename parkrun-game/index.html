@@ -454,13 +454,15 @@ const hasSecret = () => RUNNERS.length > 1 && RUNNERS[RUNNERS.length - 1].id ===
 const visibleCount = () => hasSecret() && !secretUnlocked ? RUNNERS.length - 1 : RUNNERS.length;
 // Carousel order (runner indices). Once unlocked, Draakie sits right next to Julian, at the far left.
 // Coming soon: teaser covers at the end of the carousel, not playable (shown as -1, -2, -3 in the order)
-BUILTIN_RUNNERS.forEach(r => { if (!r.emoji) r.poster = 'img/posters/' + r.id + '.jpg'; });
+const POSTER_V = {/*POSTER_VERSIONS*/};   // filled in by tools/build.mjs (cache busting)
+const posterUrl = id => 'img/posters/' + id + '.jpg' + (POSTER_V[id] ? '?v=' + POSTER_V[id] : '');
+BUILTIN_RUNNERS.forEach(r => { if (!r.emoji) r.poster = posterUrl(r.id); });
 const BUILTIN_TEASERS = [
   { id:'ren', full:'Ren', tag:'Ekiden runner.', photo:'img/ren.jpg' },
   { id:'kipren', full:'Kipren', tag:'The hill specialist.', photo:'img/kipren.jpg' },
   { id:'sander', full:'Sander', tag:'Trail runner.', photo:'img/sander.jpg' },
 ];
-BUILTIN_TEASERS.forEach(t => { t.poster = 'img/posters/' + t.id + '.jpg'; });
+BUILTIN_TEASERS.forEach(t => { t.poster = posterUrl(t.id); });
 let TEASERS = BUILTIN_TEASERS;
 const flowOrder = () => { const a = []; for (let i = 0; i < visibleCount(); i++) a.push(i);
   if (secretUnlocked && hasSecret()){ a.pop(); a.unshift(RUNNERS.length - 1); }

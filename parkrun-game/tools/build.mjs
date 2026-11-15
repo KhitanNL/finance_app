@@ -15,8 +15,17 @@ const read = f => readFileSync(join(root, f), 'utf8');
 const standalone = html => '<!doctype html>\n<html lang="en">\n<meta charset="utf-8">\n<base href="/">\n' +
   html.replace(/<meta name="claude:viewport-fit-sides"[^>]*>\n?/, '') + '\n</html>\n';
 
+// Cache busting: img/x.jpg -> img/x.jpg?v=<content hash>, so a replaced photo shows up at once on every phone.
+import { createHash } from 'node:crypto';
+const versioned = html => html.replace(/(["'(])((?:img|icons)\/[\w\/.-]+\.(?:jpg|png))(?=["')])/g, (m, q, f) => {
+  try { return q + f + '?v=' + createHash('md5').update(readFileSync(join(root, f))).digest('hex').slice(0, 8); } catch { return m; }
+});
+import { readdirSync } from 'node:fs';
+const posterVersions = () => JSON.stringify(Object.fromEntries(readdirSync(join(root, 'img/posters')).filter(f => f.endsWith('.jpg'))
+  .map(f => [f.slice(0, -4), createHash('md5').update(readFileSync(join(root, 'img/posters', f))).digest('hex').slice(0, 8)]))).slice(1, -1);
+const withPosters = html => html.replace('/*POSTER_VERSIONS*/', posterVersions());
 const pages = {
-  '/index.html': { type: 'text/html; charset=utf-8', body: standalone(read('index.html')) },
+  '/index.html': { type: 'text/html; charset=utf-8', body: withPosters(versioned(standalone(read('index.html')))) },
   '/admin.html': { type: 'text/html; charset=utf-8', body: read('admin.html') },
   '/privacy.html': { type: 'text/html; charset=utf-8', body: read('privacy.html') },
   '/manifest.webmanifest': { type: 'application/manifest+json', body: read('manifest.webmanifest') },
