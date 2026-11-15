@@ -172,7 +172,7 @@ async function load() {
   ], [['', x => x.k], ['', x => x.v, 'n']]);
   $('#runners').innerHTML = table(d.runners, [['RUNNER', x => esc(x.runner)], ['RACES', x => x.races, 'n']]);
   $('#clubs').innerHTML = table(d.clubs, [['CLUB', x => esc(x.name)], ['CODE', x => esc(x.join_code)], ['CAPTAIN', x => esc(x.captain_name || '')],
-    ['EMAIL', x => esc(x.captain_email || '')], ['PLAYERS', x => x.players, 'n'], ['RACES', x => x.races, 'n'],
+    ['EMAIL', x => esc(x.captain_email || '')], ['PLAYERS', x => x.players, 'n'], ['RUNNERS', x => x.runners, 'n'], ['RACES', x => x.races, 'n'],
     ['', x => `<button class="btn alt" data-cap="${esc(x.slug)}" type="button">NEW CAPTAIN LINK</button>`]]);
   loadReports();
 }
@@ -181,12 +181,12 @@ async function loadReports() {
   const { reports } = await res.json();
   $('#repCount').textContent = reports.length ? `(${reports.length})` : '';
   $('#reports').innerHTML = reports.length ? reports.map(r => `<div class="report">
-      ${r.kind === 'photo' && r.photo ? `<img src="${esc(r.photo)}" alt="Reported photo">` : '<div></div>'}
-      <div><b>${esc(r.kind.toUpperCase())}</b> of <b>${esc(r.nickname || r.name)}</b> in ${esc(r.club)}<br>
+      ${(r.kind === 'photo' || r.kind === 'avatar') && r.photo ? `<img src="${esc(r.photo)}" alt="Reported photo">` : '<div></div>'}
+      <div><b>${esc({ photo: 'RUNNER PHOTO', story: 'RUNNER BIO', avatar: 'PLAYER AVATAR' }[r.kind] || r.kind.toUpperCase())}</b> of <b>${esc(r.name)}</b> in ${esc(r.club)}<br>
       <span>Reason: ${esc(r.reason || 'none given')} · ${new Date(r.created_at).toLocaleString()}</span>
       ${r.kind === 'story' ? `<p class="story">${esc(r.story || '(already removed)')}</p>` : ''}
       <div class="row"><button class="btn red" data-act="remove" data-id="${r.id}" type="button">REMOVE</button>
-      <button class="btn red" data-act="ban" data-id="${r.id}" type="button">BAN PLAYER</button>
+      <button class="btn red" data-act="ban" data-id="${r.id}" type="button">${r.kind === 'avatar' ? 'BAN PLAYER' : 'HIDE RUNNER'}</button>
       <button class="btn alt" data-act="dismiss" data-id="${r.id}" type="button">DISMISS</button></div></div></div>`).join('')
     : '<p class="note">No open reports. Nice.</p>';
 }

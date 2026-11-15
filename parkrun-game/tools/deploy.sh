@@ -22,17 +22,22 @@ if [ -z "$DB_ID" ]; then
 else echo "   exists $DB_ID"; fi
 
 echo "2/6 schema + seed"
+d1q() { curl -sS "${AUTH[@]}" -X POST "$API/d1/database/$DB_ID/query" -H 'content-type: application/json' --data @/tmp/wr-sql.json; }
+# v1 -> v2 (players and characters split): only when the old players table (with legacy_id) still exists.
+python3 -c "import json; print(json.dumps({'sql': \"SELECT sql FROM sqlite_master WHERE type='table' AND name='players'\"}))" > /tmp/wr-sql.json
+if d1q | jq_py "r=d['result'][0]['results']; sys.exit(0 if r and 'legacy_id' in r[0]['sql'] else 1)"; then
+  echo "   v1 database found: backing up and migrating to v2"
+  mkdir -p backups; stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  for t in players results reports player_devices clubs; do
+    python3 -c "import json,sys; print(json.dumps({'sql': 'SELECT * FROM ' + sys.argv[1]}))" "$t" > /tmp/wr-sql.json
+    d1q > "backups/$stamp-$t.json"
+  done
+  python3 -c "import json; print(json.dumps({'sql': open('worker/migrate-v2.sql').read()}))" > /tmp/wr-sql.json
+  d1q | jq_py "print('   migrate-v2:', 'ok' if d['success'] else d['errors'])"
+fi
 for f in worker/schema.sql worker/seed.sql; do
   python3 -c "import json,sys; print(json.dumps({'sql': open('$f').read()}))" > /tmp/wr-sql.json
-  curl -sS "${AUTH[@]}" -X POST "$API/d1/database/$DB_ID/query" -H 'content-type: application/json' --data @/tmp/wr-sql.json \
-    | jq_py "print('   $f:', 'ok' if d['success'] else d['errors'])"
-done
-
-for stmt in $(grep -c '^ALTER' worker/migrations.sql | xargs seq 1); do
-  sql=$(grep '^ALTER' worker/migrations.sql | sed -n "${stmt}p")
-  python3 -c "import json,sys; print(json.dumps({'sql': sys.argv[1]}))" "$sql" > /tmp/wr-sql.json
-  curl -sS "${AUTH[@]}" -X POST "$API/d1/database/$DB_ID/query" -H 'content-type: application/json' --data @/tmp/wr-sql.json \
-    | jq_py "print('   migration $stmt:', 'ok' if d['success'] else 'already done' if 'duplicate column' in str(d['errors']) else d['errors'])"
+  d1q | jq_py "print('   $f:', 'ok' if d['success'] else d['errors'])"
 done
 
 echo "3/6 R2 bucket + static images"

@@ -218,6 +218,28 @@ p{margin:0;max-width:60ch}
 .crop-view canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
 .rep-item{display:flex;flex-direction:column;gap:8px;border:2px solid var(--ink);padding:8px;background:#fffbe9}
 .board li.tap{cursor:pointer}
+.playing{margin:0 0 6px;font-family:var(--f-display);font-size:9px;letter-spacing:.06em;color:var(--muted)}
+.playing b{color:var(--hivis);font-weight:400}
+.playing .link{font-family:var(--f-display);font-size:9px;color:var(--paper);margin-left:6px}
+.lead-dark{margin:0;font-size:21px}
+.pc-sub{margin:0;font-family:var(--f-display);font-size:6px;color:#6b6273;letter-spacing:.06em}
+.pc-linked{margin:0;font-size:18px;background:#fffbe9;border:2px dashed var(--ink);padding:6px 8px}
+.pc-game .wide{grid-column:1 / -1}
+.pc-game dd .link{font-size:20px}
+.pl-top{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start}
+.av{display:block;width:96px;aspect-ratio:3/4;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);overflow:hidden;background:#2a2346}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av.ini{display:grid;place-items:center;font-family:var(--f-display);font-size:22px;color:var(--paper);background:var(--chrome-2)}
+.av.small{width:48px;border-width:2px;box-shadow:none}
+.av-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px}
+.av-opt{position:relative;cursor:pointer;flex-direction:column!important}
+.av-opt input{position:absolute;opacity:0;width:1px;height:1px}
+.av-opt .av{width:100%;box-shadow:none;border-width:2px}
+.av-opt .av.ini{font-size:14px}
+.av-opt input:checked + .av{outline:4px solid var(--hivis);outline-offset:1px}
+.av-opt input:focus-visible + .av{outline:3px dashed var(--chrome-2)}
+.lb-group .btn{font-size:9px}
+.board li small{font-size:16px;opacity:.8}
 .link{background:none;border:0;padding:0;font:inherit;color:var(--chrome-2);text-decoration:underline;cursor:pointer}
 .poster-report{position:absolute;bottom:max(12px, env(safe-area-inset-bottom, 0px));right:max(12px, env(safe-area-inset-right, 0px))}
 .help{position:fixed;inset:0;z-index:50;background:rgba(10,8,14,.78);display:grid;place-items:center;
@@ -380,6 +402,7 @@ p{margin:0;max-width:60ch}
 
     <section id="scr-select" hidden>
       <div>
+        <p class="playing" id="playingAs" hidden>PLAYING AS <b id="playingName"></b> <button class="link" id="playingEdit" type="button">EDIT</button></p>
         <p class="eyebrow">STEP 1 OF 2</p>
         <h2>CHOOSE YOUR RUNNER</h2>
       </div>
@@ -1355,16 +1378,27 @@ function show(screen){
 }
 async function submitResult(r, t){
   const box = $('#clubBoardWrap'); box.hidden = true;
-  if (!NET.online || !r.me.dbId) return;
+  if (!NET.online || !r.me.dbId || !NET.me) return;
   try {
-    const me = myProfile();
-    const s = await apiCall('/api/results', { method:'POST', json:{ club: clubSlug, runner_id: r.me.dbId, by_player_id: me && me.id, mode:'classic', time_s: Math.round(t), taps: r.taps, max_cad: r.maxCad } });
-    const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`);
+    const s = await apiCall('/api/results', { method:'POST', json:{ club: clubSlug, character_id: r.me.dbId, mode:'classic', time_s: Math.round(t), taps: r.taps, max_cad: r.maxCad } });
+    if (s.ok){
+      if (s.data.character_record){ r.me.clubBest = Math.round(t); r.me.recordBy = NET.me.name; }
+      // badges: NEW PB = the player's own game PB (any runner); CHARACTER RECORD = fastest ever with this runner in the club
+      const extra = [s.data.player_pb && ['NEW PB!', 'pb'], s.data.character_record && ['CHARACTER RECORD!', 'pb'], !s.data.player_pb && s.data.character_pb && s.data.prev_character_pb && ['PB AS ' + r.me.name, '']].filter(Boolean);
+      const bd = $('#badges'); bd.querySelectorAll('.badge.pending').forEach(x => x.remove());
+      bd.insertAdjacentHTML('afterbegin', extra.map(([b, c]) => `<span class="badge ${c}">${esc(b)}</span>`).join(''));
+      const prevRow = [...$('#resGrid').querySelectorAll('div')].find(d => /Your PB before/.test(d.textContent));
+      if (prevRow) prevRow.querySelector('dd').textContent = s.data.prev_player_pb ? fmt(s.data.prev_player_pb) : 'none';
+      const L = lastShare.split('\n');
+      if (s.data.player_pb && !/NEW PB/.test(L[1])) L[1] += ' NEW PB!';
+      if (s.data.character_record) L[1] += ' Character record!';
+      lastShare = L.join('\n');
+    }
+    const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic&group=player`);
     if (!lb.ok) return;
-    if (s.ok && (!r.me.clubBest || t < r.me.clubBest)) r.me.clubBest = Math.round(t);
-    $('#clubBoard').innerHTML = boardHtml(lb.data.today, r.me.name);
-    $('#clubBoardAll').innerHTML = boardHtml((lb.data.all || []).slice(0, 5), r.me.name);
-    $('#clubBoardNote').textContent = s.ok ? 'Your time is saved for ' + NET.club.name + '.' + (s.data.points ? ' +' + s.data.points + ' points.' : (me ? '' : ' Join the club to collect points.')) : (s.data.error || 'This time was not saved.');
+    $('#clubBoard').innerHTML = boardHtml(lb.data.today, 'player');
+    $('#clubBoardAll').innerHTML = boardHtml((lb.data.all || []).slice(0, 5), 'player');
+    $('#clubBoardNote').textContent = s.ok ? 'Saved for ' + NET.me.name + ' in ' + NET.club.name + '. +' + s.data.points + ' points.' : (s.data.error || 'This time was not saved.');
     box.hidden = false;
   } catch(e){}
 }
@@ -1373,6 +1407,7 @@ function startRace(){
   audioInit();
   newRace();
   trackEvent('race_start', { runner: race.me.id, mode: 'classic' });
+  const picks = store.get('picks.' + clubSlug, {}) || {}; picks[race.me.id] = (picks[race.me.id] || 0) + 1; store.set('picks.' + clubSlug, picks);
   show('race');
   AU.playing = true; AU.step = 0; AU.nextT = 0;
   requestWake();
@@ -1419,11 +1454,11 @@ function renderInfo(){
   const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
   $('#flowName').textContent = r.full.toUpperCase();
   $('#flowTag').textContent = r.tag;
-  const mine = r.dbId && myProfile() && myProfile().id === r.dbId;
-  const acts = '<button class="mini" type="button" data-ra="profile">' + (mine ? 'MY PROFILE' : 'PROFILE') + '</button>';
+  const mine = r.dbId && NET.me && NET.me.linked_character_id === r.dbId;
+  const acts = '<button class="mini" type="button" data-ra="profile">' + (mine ? 'MY RUNNER CARD' : 'RUNNER CARD') + '</button>';
   $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${esc(r.name)}</h3><p class="known">${esc(r.known)}</p>
     <dl class="stats"><dt>FAST TWITCH</dt><dd>${pips(r.spd)}</dd><dt>SLOW TWITCH</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JUMP</dt><dd>${pips(r.jmp)}</dd></dl>
-    ${r.verse ? '<p class="story verse">' + esc(r.verse) + '</p>' : ''}${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">${shared(r) ? 'CLUB RECORD' : 'GAME PB'} ${recordOf(r) ? fmt(recordOf(r)) : '--:--'}</p>
+    ${r.verse ? '<p class="story verse">' + esc(r.verse) + '</p>' : ''}${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">${shared(r) ? 'CLUB RECORD' : 'BEST ON THIS PHONE'} ${recordOf(r) ? fmt(recordOf(r)) + (shared(r) && r.recordBy ? ' <small>by ' + esc(r.recordBy) + '</small>' : '') : '--:--'}</p>
     ${acts ? '<div class="mini-actions">' + acts + '</div>' : ''}`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
@@ -1515,7 +1550,7 @@ function openPoster(item){
   const box = $('#poster'), img = $('#posterImg'), emo = $('#posterEmoji');
   if (who.poster){ img.src = who.poster; img.alt = 'Poster of ' + who.full; img.hidden = false; emo.hidden = true; }
   else { img.hidden = true; emo.hidden = false; emo.innerHTML = `<span>${esc(who.emoji)}</span><b>${esc(who.full.toUpperCase())}</b><i>${esc(who.tag)}</i>`; }
-  const rp = $('#posterReport'); rp._who = who; rp.hidden = !(NET.online && who.dbId && who.poster && !String(who.poster).startsWith('data:') && !(myProfile() && myProfile().id === who.dbId));
+  const rp = $('#posterReport'); rp._who = who; rp.hidden = !(NET.online && who.dbId && who.poster && !String(who.poster).startsWith('data:') && !(NET.me && NET.me.linked_character_id === who.dbId));
   box.hidden = false; sfx('select'); $('#posterClose').focus();
 }
 function closePoster(){ $('#poster').hidden = true; if (!$('#clubModal').hidden) return; const c = $('#cards'); if (c) c.focus(); }
@@ -1548,15 +1583,19 @@ function showResults(){
   const rows = [{ name: me.name, t: myT, me: true, id: me.id }].concat(r.rivals.map(v => ({ name: RUNNERS[v.i].name, t: v.T, id: RUNNERS[v.i].id })));
   rows.sort((a, b) => a.t - b.t);
   const pos = rows.findIndex(x => x.me) + 1;
-  const prev = recordOf(me), online = shared(me);
-  const isPB = !prev || myT < prev;
-  if (!pbs[me.id] || myT < pbs[me.id]){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }   // local fallback for offline play
-  $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
+  const online = !!(shared(me) && NET.me);
+  // offline: one local player per phone, PB over all runners (and per runner for the runner select)
+  const localBest = store.get('pbAll', null), prev = online ? null : localBest;
+  const isPB = !online && (!localBest || myT < localBest);
+  if (!localBest || myT < localBest) store.set('pbAll', Math.round(myT));
+  if (!pbs[me.id] || myT < pbs[me.id]){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
+  const who = online ? NET.me.name : null;
+  $('#resName').textContent = (who ? who.toUpperCase() + ' AS ' : '') + me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
   $('#resPhoto').hidden = !!me.emoji; $('#resEmoji').hidden = !me.emoji;
   if (me.emoji) $('#resEmoji').textContent = me.emoji; else { $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full; }
   $('#resTime').textContent = fmt(myT);
   const badges = [];
-  if (isPB) badges.push([online ? 'NEW CLUB RECORD!' : 'NEW PB!', 'pb']);
+  if (isPB) badges.push(['NEW PB!', 'pb']);
   if (myT < 1020) badges.push(['SUB 17!', '']);
   else if (myT < 1080) badges.push(['SUB 18!', '']);
   if (pos === 1) badges.push(['PACK LEADER', '']);
@@ -1568,26 +1607,27 @@ function showResults(){
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], [online ? 'Club record before' : 'Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Your PB before', online ? '...' : prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${esc(x.name)}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
   const clubLine = NET.club ? NET.club.name : 'Zuiderpark';
-  const dev = myProfile(), byName = dev && dev.id !== me.dbId && NET.players.find(x => x.id === dev.id);
-  lastResult = { me, t: myT, pos, n: rows.length };
-  lastShare = `Wolfpack Run · ${clubLine} 5K\n${me.full}${byName ? ' (raced by ' + byName.name + ')' : ''}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\n${NET.online ? clubLink() : 'wolfpackrun.app'}`;
+  lastResult = { me, t: myT, pos, n: rows.length, who };
+  lastShare = `Wolfpack Run · ${clubLine} 5K\n${who ? who + ' ran ' + fmt(myT) + ' as ' + me.full : me.full + ': ' + fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\n${NET.online ? clubLink() : 'wolfpackrun.app'}`;
   $('#copyMsg').textContent = '';
   show('result');
   trackEvent('race_finish', { runner: me.id, mode: 'classic', time_s: Math.round(myT) });
   submitResult(r, myT);
 }
 
-/* ---------- clubs + online features (offline-first: without the API the game plays with the built-in runners) ---------- */
+/* ---------- clubs + online features (offline-first: without the API the game plays with the built-in runners) ----------
+   Like a fighting game: the PLAYER is the person holding the phone (player name, points, streaks, all results),
+   a CHARACTER is a runner from the club roster that any player can race as. */
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const DEFAULT_CLUB = 'wolfpack-zuiderpark';
 const shared = r => NET.online && r && r.dbId;                    // online: times are shared with the club
 const recordOf = r => shared(r) ? (r.clubBest || null) : (pbs[r.id] || null);
-const NET = { online:false, club:null, captain:false, players:[] };
+const NET = { online:false, club:null, captain:false, characters:[], me:null };
 const urlClub = (location.pathname.match(/^\/c\/([a-z0-9-]+)/) || [])[1] || null;
 let clubSlug = urlClub || store.get('club', DEFAULT_CLUB) || DEFAULT_CLUB;
 (() => {   // captain link: /c/<slug>#captain=<token>; keep the token on this device and drop it from the address bar
@@ -1595,9 +1635,10 @@ let clubSlug = urlClub || store.get('club', DEFAULT_CLUB) || DEFAULT_CLUB;
   if (m && urlClub){ store.set('cap.' + urlClub, m[1]); try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
 })();
 const canTryApi = /^https?:$/.test(location.protocol) && !/claude/.test(location.hostname);
-const myProfile = () => store.get('me.' + clubSlug, null);
+const myProfile = () => store.get('me.' + clubSlug, null);         // { id: player id, token: private device token }
 const capToken = () => store.get('cap.' + clubSlug, null);
 const clubLink = () => location.origin + '/c/' + clubSlug;
+const playerName = () => NET.me ? NET.me.name : null;
 
 async function apiCall(path, opts = {}, ms = 6000){
   if (!canTryApi) throw new Error('offline');
@@ -1638,36 +1679,39 @@ function suggestStats(pb5, pb10, pbm){
   return { fast: 6 - slow, slow, love: 4, jump: 4 };
 }
 const KIT = ['#f26a1b', '#2f6fd6', '#c8202e', '#47b84a', '#7a3ea0', '#e6b800', '#0f6b72', '#d0458a'];
-function playerRunner(p){
-  const nick = String(p.nickname || p.name).toUpperCase().slice(0, 12);
-  const known = [p.pb5k && '5K ' + fmt(p.pb5k), p.pb10k && '10K ' + fmt(p.pb10k), p.pbmar && 'Marathon ' + fmtLong(p.pbmar)].filter(Boolean).join(' · ') || 'Club runner';
-  const kit = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : KIT[p.id % KIT.length];
-  return { id:'p' + p.id, dbId:p.id, clubBest: p.best || null, name:nick, full:p.name, photo:p.photo || '', poster: p.photo || undefined, auto: !p.photo,
-    tag: p.tagline || 'Club runner.', known, story: p.story || '', perk: 'Club runner: no special perk, just honest running.',
-    spd:p.stats.fast, st:p.stats.slow, love:p.stats.love, jmp:p.stats.jump, target: p.pb5k || 1200, fx:{},
+function charRunner(c){
+  const nick = String(c.nickname || c.name).toUpperCase().slice(0, 12);
+  const known = [c.pb5k && '5K ' + fmt(c.pb5k), c.pb10k && '10K ' + fmt(c.pb10k), c.pbhalf && 'Half ' + fmtLong(c.pbhalf), c.pbmar && 'Marathon ' + fmtLong(c.pbmar)].filter(Boolean).join(' · ') || 'Club runner';
+  const kit = /^#[0-9a-f]{6}$/i.test(c.color || '') ? c.color : KIT[c.id % KIT.length];
+  return { id:'p' + c.id, dbId:c.id, clubBest: c.record ? c.record.time_s : null, recordBy: c.record ? c.record.by : null, name:nick, full:c.name,
+    photo:c.photo || '', poster: c.photo || undefined, auto: !c.photo,
+    tag: c.tagline || 'Club runner.', known, story: c.story || '', perk: 'Club runner: no special perk, just honest running.',
+    spd:c.stats.fast, st:c.stats.slow, love:c.stats.love, jmp:c.stats.jump, target: c.pb5k || 1200, fx:{},
     shouts:['GO ' + nick + '!', 'KOM OP ' + nick + '!'], pal:{ h:'#2a1a12', s:'#d9a77a', t:kit, n:'#f6efe1', p:'#1b1420', k:'#f4f4f4' } };
 }
 function applyClub(data){
-  NET.club = data.club; NET.captain = !!data.captain; NET.players = data.players || [];
+  NET.club = data.club; NET.captain = !!data.captain; NET.characters = data.characters || []; NET.me = data.me || null;
+  const saved = myProfile();
+  if (NET.me && saved && saved.id !== NET.me.id) store.set('me.' + clubSlug, { id: NET.me.id, token: saved.token });   // v2: ids are player ids now
   const wolf = data.club.slug === DEFAULT_CLUB, list = [];
   if (wolf){
-    const byLegacy = Object.fromEntries(NET.players.filter(p => p.legacy_id).map(p => [p.legacy_id, p]));
-    for (const b of BUILTIN_RUNNERS){ const p = byLegacy[b.id]; if (p){ b.dbId = p.id; b.clubBest = p.best || null;
-      // a photo uploaded to the profile replaces the hand-made poster; removing it brings the original back
+    const byLegacy = Object.fromEntries(NET.characters.filter(c => c.legacy_id).map(c => [c.legacy_id, c]));
+    for (const b of BUILTIN_RUNNERS){ const c = byLegacy[b.id]; if (c){ b.dbId = c.id; b.clubBest = c.record ? c.record.time_s : null; b.recordBy = c.record ? c.record.by : null;
+      // a photo uploaded to the runner replaces the hand-made poster; removing it brings the original back
       if (!b._orig) b._orig = { photo: b.photo, poster: b.poster, emoji: b.emoji, tag: b.tag };
-      const up = p.photo && p.photo.startsWith('/img/u/');
-      b.photo = up ? p.photo : b._orig.photo; b.poster = up ? p.photo : b._orig.poster; b.emoji = up ? undefined : b._orig.emoji;
-      b.tag = p.tagline || b._orig.tag; if (p.story) b.story = p.story;
+      const up = c.photo && c.photo.startsWith('/img/u/');
+      b.photo = up ? c.photo : b._orig.photo; b.poster = up ? c.photo : b._orig.poster; b.emoji = up ? undefined : b._orig.emoji;
+      b.tag = c.tagline || b._orig.tag; if (c.story) b.story = c.story;
       if (b.id !== 'draakie') list.push(b); } }
-    list.push(...NET.players.filter(p => !p.legacy_id).map(playerRunner));
+    list.push(...NET.characters.filter(c => !c.legacy_id).map(charRunner));
     const dr = BUILTIN_RUNNERS.find(b => b.id === 'draakie'); if (dr && byLegacy.draakie) list.push(dr);
-  } else list.push(...NET.players.map(playerRunner));
+  } else list.push(...NET.characters.map(charRunner));
   if (list.length){
     RUNNERS = list; TEASERS = wolf ? BUILTIN_TEASERS : [];
     rebuildRunnerSprites(); RUNNERS.forEach(withPoster);
     G.sel = Math.max(0, Math.min(store.get('sel.' + clubSlug, 0), visibleCount() - 1));
   }
-  renderClubBar(); legend();
+  renderClubBar(); renderPlayingAs(); legend();
   if (G.screen === 'select'){ renderCards(); choose(G.sel, true); }
 }
 function renderClubBar(){
@@ -1676,13 +1720,29 @@ function renderClubBar(){
   $('#clubSub').textContent = c ? (c.course || 'Home course not set') : (canTryApi ? 'Connecting...' : 'Offline: built-in runners');
   $('#clubDot').style.background = (c && c.color) || '';
 }
+function renderPlayingAs(){
+  const el = $('#playingAs'); if (!el) return;
+  el.hidden = !(NET.online && NET.me);
+  if (NET.me) $('#playingName').textContent = NET.me.name.toUpperCase();
+}
 async function loadClub(){
   try {
     let r = await apiCall('/api/clubs/' + clubSlug);
     if (r.status === 404 && clubSlug !== DEFAULT_CLUB){ clubSlug = DEFAULT_CLUB; r = await apiCall('/api/clubs/' + clubSlug); }
     if (!r.ok) throw new Error('no club');
     NET.online = true; store.set('club', clubSlug); applyClub(r.data);
-  } catch(e){ NET.online = false; NET.club = null; renderClubBar(); if (canTryApi) $('#clubSub').textContent = 'Offline: built-in runners'; }
+  } catch(e){ NET.online = false; NET.club = null; NET.me = null; renderClubBar(); renderPlayingAs(); if (canTryApi) $('#clubSub').textContent = 'Offline: built-in runners'; }
+}
+// Before the runner select: online, every phone needs a player name (and existing users confirm theirs once).
+const needsPlayerName = () => NET.online && NET.club && (!NET.me || NET.me.needs_name);
+function goSelect(){ show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); }
+// Prefill for the name question: the runner this phone picked most (falls back to the last pick).
+function mostPickedName(){
+  const picks = store.get('picks.' + clubSlug, {}) || {};
+  let best = null, n = 0;
+  for (const [id, k] of Object.entries(picks)) if (k > n){ n = k; best = id; }
+  const r = RUNNERS.find(x => x.id === best) || RUNNERS[store.get('sel.' + clubSlug, -1)];
+  return r ? String(r.full).replace(/\s*\(.*\)\s*/, '').slice(0, 20) : '';
 }
 
 /* ----- open the RANKS popup by itself once, when the game starts online ----- */
@@ -1692,14 +1752,14 @@ function autoRanks(){
   G.todaySeen = true; openClub('board');
 }
 
-/* ----- player profiles: card, placeholder poster, crop tool ----- */
+/* ----- runner (character) card, placeholder poster, crop tool ----- */
 const RUNNER_TYPES = ['', 'DIESEL', 'STRIDER', 'ALL-ROUNDER', 'SPEEDSTER', 'SPRINTER'];
 const runnerType = fast => RUNNER_TYPES[fast] || 'ALL-ROUNDER';
 function runnerByDb(id){
   const r = RUNNERS.find(x => x.dbId === id) || BUILTIN_RUNNERS.find(x => x.dbId === id);
   if (r) return r;
-  const p = NET.players.find(x => x.id === id);
-  return p ? withPoster(playerRunner(p)) : null;
+  const c = NET.characters.find(x => x.id === id);
+  return c ? withPoster(charRunner(c)) : null;
 }
 // Pixel-art poster for runners without a photo: their own sprite and kit colour.
 const posterCache = {};
@@ -1723,12 +1783,13 @@ function placeholderPoster(r){
 }
 function withPoster(r){ if (r.auto){ r.photo = r.poster = placeholderPoster(r); } return r; }
 function profileData(r){
-  const p = r.dbId ? NET.players.find(x => x.id === r.dbId) : null;
+  const c = r.dbId ? NET.characters.find(x => x.id === r.dbId) : null;
   const legacy = BUILTIN_RUNNERS.includes(r);
-  return { id: r.dbId, name: legacy ? r.full : (p ? p.name : r.full), nickname: r.name, tagline: (p && p.tagline) || r.tag,
-    pb5k: p && p.pb5k, pb10k: p && p.pb10k, pbhalf: p && p.pbhalf, pbmar: p && p.pbmar, known: r.known,
+  return { id: r.dbId, name: legacy ? r.full : (c ? c.name : r.full), nickname: r.name, tagline: (c && c.tagline) || r.tag,
+    pb5k: c && c.pb5k, pb10k: c && c.pb10k, pbhalf: c && c.pbhalf, pbmar: c && c.pbmar, known: r.known,
     story: r.story || '', verse: r.verse, perk: r.perk, stats: { fast: r.spd, slow: r.st, love: r.love, jump: r.jmp },
-    photo: r.photo, emoji: r.emoji, kit: r.pal && r.pal.t, legacy, record: recordOf(r), online: shared(r) };
+    photo: r.photo, emoji: r.emoji, kit: r.pal && r.pal.t, legacy, record: recordOf(r), recordBy: shared(r) ? r.recordBy : null, online: shared(r),
+    linked: c && c.linked };
 }
 function cardHtml(d, o = {}){
   const bar = (label, n, full) => `<div class="pc-bar"><span>${label}</span><i aria-hidden="true">${Array.from({ length:5 }, (_, k) => `<b class="${k < n ? 'on' : ''}"></b>`).join('')}</i><em>${n}</em><small class="vh">${full} ${n} of 5</small></div>`;
@@ -1741,7 +1802,7 @@ function cardHtml(d, o = {}){
       <button class="pc-photo" type="button" data-pa="poster" aria-label="Show the photo full screen" ${o.compact ? 'tabindex="-1"' : ''}>${d.emoji && !photo ? `<span class="pc-emo">${esc(d.emoji)}</span>` : `<img src="${esc(photo)}" alt="${esc(d.name)}">`}</button>
       <div class="pc-id"><h3>${esc(String(d.name || '').toUpperCase())}</h3>${d.tagline ? `<p class="pc-tag">${esc(d.tagline)}</p>` : ''}
         <span class="pc-type">${runnerType(st.fast)}</span>
-        ${pbs.length ? `<dl class="pc-pbs">${pbs.map(([k, v, f]) => `<div><dt>${k}</dt><dd>${f(v)}</dd></div>`).join('')}</dl>` : d.known ? `<p class="pc-known">${esc(d.known)}</p>` : ''}</div>
+        ${pbs.length ? `<p class="pc-sub">REAL-LIFE PBS</p><dl class="pc-pbs">${pbs.map(([k, v, f]) => `<div><dt>${k}</dt><dd>${f(v)}</dd></div>`).join('')}</dl>` : d.known ? `<p class="pc-known">${esc(d.known)}</p>` : ''}</div>
     </div>
     <div class="pc-stats">${bar('SPD', st.fast, 'Speed, fast twitch')}${bar('END', st.slow, 'Endurance, slow twitch')}${bar('LOVE', st.love, 'Love')}${bar('JMP', st.jump, 'Jump')}</div>
     <div class="pc-twitch"><span>FAST</span><div class="tw-bar" role="img" aria-label="${pct} percent fast twitch"><i style="width:${pct}%"></i></div><span>SLOW</span></div>
@@ -1750,57 +1811,104 @@ function cardHtml(d, o = {}){
     ${d.perk && !o.compact ? `<p class="pc-perk">${esc(d.perk)}</p>` : ''}
   </div>`;
 }
+// CHARACTER card: the runner's real-life PBs, story, game stats and who holds the club record with it.
 async function openProfileCard(r, flash){
   if (!r) return;
   $('#clubModal').hidden = false;
-  $('#clubTitle').textContent = 'PROFILE';
+  $('#clubTitle').textContent = 'RUNNER';
   const d = profileData(r);
-  const render = (info) => {
-    const g = info && info.game, mine = info ? info.owner : (r.dbId && myProfile() && myProfile().id === r.dbId);
-    const canEdit = info ? info.can_edit : false, other = NET.online && r.dbId && !mine;
+  const render = info => {
+    const u = info && info.usage, rec = u ? u.record : (d.record ? { time_s: d.record, by: d.recordBy } : null);
+    const linkedToMe = info ? info.linked_to_me : false, linked = info ? info.linked : d.linked;
     const realPhoto = d.photo && !String(d.photo).startsWith('data:');
+    const canClaim = info && NET.me && !NET.me.unknown && !linked && !NET.me.linked_character_id;
     CB().innerHTML = `${flash ? `<p class="ok"><b>${esc(flash)}</b></p>` : ''}${cardHtml(d)}
-      <h3>GAME STATS</h3>
-      ${g ? `<dl class="pc-game">
-        <div><dt>RACES</dt><dd>${g.races}</dd></div><div><dt>TOTAL</dt><dd>${g.km} km</dd></div>
-        <div><dt>PB CLASSIC</dt><dd>${g.pb.classic ? fmt(g.pb.classic) : '--:--'}</dd></div><div><dt>${d.online ? 'CLUB RECORD' : 'GAME PB'}</dt><dd>${d.record ? fmt(d.record) : '--:--'}</dd></div>
-        <div><dt>STREAK</dt><dd>${g.streak} ${g.streak === 1 ? 'day' : 'days'}</dd></div><div><dt>BEST STREAK</dt><dd>${g.best_streak} ${g.best_streak === 1 ? 'day' : 'days'}</dd></div>
-        <div><dt>POINTS</dt><dd>${g.points.balance}</dd></div><div><dt>LIFETIME POINTS</dt><dd>${g.points.lifetime}</dd></div></dl>
-        <p class="note">Races, km, streaks and points count the races run from ${mine ? 'your' : 'this runner\'s'} phone. 10 points per race, +20 for a new PB, +5 when you also raced the day before.</p>`
-      : `<dl class="pc-game"><div><dt>${d.online ? 'CLUB RECORD' : 'GAME PB'}</dt><dd>${d.record ? fmt(d.record) : '--:--'}</dd></div></dl>
-        <p class="note">${NET.online ? 'Loading...' : 'Game stats need an internet connection.'}</p>`}
-      <h3>SHOE WALL</h3>
-      <div class="shoewall" aria-label="Shoe wall, empty for now"><div class="shoe-rot">${['DAILY', 'TEMPO', 'RACE'].map(s => `<div class="slot"><span>?</span><small>${s}</small></div>`).join('')}</div>
-        <p class="note">The shoe shop opens soon. Collected shoes and the rotation will show up here.</p></div>
-      <div class="actions">${canEdit ? '<button class="btn hot" type="button" data-pa="edit">EDIT</button>' : ''}
-        ${other && realPhoto ? '<button class="btn alt" type="button" data-pa="rphoto">REPORT PHOTO</button>' : ''}
-        ${other && d.story ? '<button class="btn alt" type="button" data-pa="rbio">REPORT BIO</button>' : ''}</div>
-      ${canEdit ? `<div class="actions"><button class="btn alt" type="button" data-pa="recovery">${mine ? 'NEW RECOVERY CODE' : 'MAKE RECOVERY CODE'}</button>
-        ${info.captain && !d.legacy && !mine ? '<button class="btn alt" type="button" data-pa="remove">REMOVE PLAYER</button>' : ''}</div>` : ''}
-      ${mine === false && !myProfile() && NET.online ? '<p class="note">Is this you? Ask your captain for a recovery code to claim it.</p>' : ''}
+      ${linked ? `<p class="pc-linked">${linkedToMe ? 'This is you.' : 'The real ' + esc(d.name) + ' plays as <button class="link" type="button" data-pl="' + linked.id + '">' + esc(linked.name) + '</button>.'}</p>` : ''}
+      <h3>IN THE GAME</h3>
+      <dl class="pc-game">
+        <div class="wide"><dt>${d.online || u ? 'CLUB RECORD WITH THIS RUNNER' : 'BEST ON THIS PHONE'}</dt><dd>${rec ? fmt(rec.time_s) + (rec.by ? ' by ' + (rec.by_id ? `<button class="link" type="button" data-pl="${rec.by_id}">${esc(rec.by)}</button>` : esc(rec.by)) : '') : '--:--'}</dd></div>
+        ${u ? `<div><dt>RACES RUN</dt><dd>${u.races}</dd></div><div><dt>BY PLAYERS</dt><dd>${u.players}</dd></div>
+          ${NET.me ? `<div class="wide"><dt>YOUR BEST WITH THIS RUNNER</dt><dd>${u.my_best ? fmt(u.my_best) + ' (' + u.my_races + (u.my_races === 1 ? ' race)' : ' races)') : '--:--'}</dd></div>` : ''}` : ''}
+      </dl>
+      ${!info && NET.online && r.dbId ? '<p class="note">Loading...</p>' : ''}${!NET.online ? '<p class="note">Club records need an internet connection.</p>' : ''}
+      <div class="actions">${info && info.can_edit ? '<button class="btn hot" type="button" data-pa="edit">EDIT RUNNER</button>' : ''}
+        ${canClaim ? '<button class="btn alt" type="button" data-pa="claim">THIS IS ME</button>' : ''}
+        ${linkedToMe ? '<button class="btn alt" type="button" data-pa="unlinkme">NOT ME</button>' : ''}</div>
+      ${info && !linkedToMe && NET.online && r.dbId && (realPhoto || d.story) ? `<div class="actions">${realPhoto ? '<button class="btn alt" type="button" data-pa="rphoto">REPORT PHOTO</button>' : ''}${d.story ? '<button class="btn alt" type="button" data-pa="rbio">REPORT BIO</button>' : ''}</div>` : ''}
+      ${info && info.captain ? `<h3>CAPTAIN</h3><div class="actions"><button class="btn alt" type="button" data-pa="claimcode">MAKE CLAIM CODE</button>
+        ${linked ? '<button class="btn alt" type="button" data-pa="unlink">UNLINK ' + esc(String(linked.name).toUpperCase()) + '</button>' : ''}
+        ${!d.legacy ? '<button class="btn alt" type="button" data-pa="remove">REMOVE RUNNER</button>' : ''}</div>
+        <p class="note">A claim code lets the real ${esc(d.name)} link their player to this runner (THIS IS ME), so they can edit the photo, story and real PBs.</p>` : ''}
       <div class="actions"><button class="btn alt" type="button" data-cv="close">CLOSE</button></div>`;
-    const box = CB();
-    box.querySelectorAll('[data-pa]').forEach(b => b.addEventListener('click', async () => {
+    CB().querySelectorAll('[data-pl]').forEach(b => b.addEventListener('click', () => openPlayerProfile(+b.dataset.pl)));
+    CB().querySelectorAll('[data-pa]').forEach(b => b.addEventListener('click', async () => {
       const a = b.dataset.pa;
+      const armed = label => { if (b.dataset.armed === '1') return true; b.dataset.armed = '1'; b.textContent = label; return false; };
       if (a === 'poster'){ if (r.poster || r.photo || r.emoji) openPoster(RUNNERS.indexOf(r) >= 0 ? RUNNERS.indexOf(r) : r); return; }
-      if (a === 'edit') return CLUB_VIEWS.profile(r);
-      if (a === 'rphoto') return CLUB_VIEWS.report({ kind:'photo', id:r.dbId, name:r.name, back:r });
-      if (a === 'rbio') return CLUB_VIEWS.report({ kind:'story', id:r.dbId, name:r.name, back:r });
-      if (a === 'recovery'){
-        if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = mine ? 'OLD CODE STOPS WORKING. TAP AGAIN' : 'TAP AGAIN TO CONFIRM'; return; }
-        try { const x = await apiCall(`/api/players/${r.dbId}/recovery`, { method:'POST' }); if (x.ok) CLUB_VIEWS.recovery({ code: x.data.recovery_code, forOther: !mine, name: d.name }); } catch(e){}
-        return;
-      }
-      if (a === 'remove'){
-        if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'TAP AGAIN TO REMOVE'; return; }
-        try { await apiCall(`/api/players/${r.dbId}`, { method:'DELETE' }); await loadClub(); closeClub(); } catch(e){}
-      }
+      if (a === 'edit') return CLUB_VIEWS.character({ runner: r });
+      if (a === 'claim') return CLUB_VIEWS.claim(r);
+      if (a === 'rphoto') return CLUB_VIEWS.report({ kind:'photo', character_id:r.dbId, name:r.name, back:() => openProfileCard(r) });
+      if (a === 'rbio') return CLUB_VIEWS.report({ kind:'story', character_id:r.dbId, name:r.name, back:() => openProfileCard(r) });
+      try {
+        if (a === 'unlinkme'){ if (!armed('TAP AGAIN: UNLINK')) return; await apiCall(`/api/players/${NET.me.id}/link`, { method:'DELETE' }); await loadClub(); return openProfileCard(r, 'Unlinked.'); }
+        if (a === 'unlink'){ if (!armed('TAP AGAIN TO UNLINK')) return; await apiCall(`/api/characters/${r.dbId}/link`, { method:'DELETE' }); await loadClub(); return openProfileCard(r, 'Unlinked.'); }
+        if (a === 'claimcode'){ if (!armed('OLD CODE STOPS WORKING. TAP AGAIN')) return;
+          const x = await apiCall(`/api/characters/${r.dbId}/claim-code`, { method:'POST' }); if (x.ok) CLUB_VIEWS.code({ code: x.data.claim_code, kind:'claim', name: d.name, back:() => openProfileCard(r) }); return; }
+        if (a === 'remove'){ if (!armed('TAP AGAIN TO REMOVE')) return; await apiCall(`/api/characters/${r.dbId}`, { method:'DELETE' }); await loadClub(); closeClub(); }
+      } catch(e){}
     }));
   };
   render(null);
   if (NET.online && r.dbId){
-    try { const x = await apiCall('/api/players/' + r.dbId); if (x.ok && !$('#clubModal').hidden && CB().querySelector('.pcard')) render(x.data); } catch(e){}
+    try { const x = await apiCall('/api/characters/' + r.dbId); if (x.ok && !$('#clubModal').hidden && CB().querySelector('.pcard')) render(x.data); } catch(e){}
   }
+}
+// PLAYER profile: the person. Player name, avatar, linked runner, streak, points, shoes, game PBs, recent races.
+async function openPlayerProfile(id, flash){
+  $('#clubModal').hidden = false; $('#clubTitle').textContent = 'PLAYER';
+  CB().innerHTML = '<p>Loading...</p>';
+  let x; try { x = await apiCall('/api/players/' + id); } catch(e){ CB().innerHTML = '<p class="err">No connection.</p>'; return; }
+  if (!x.ok){ CB().innerHTML = `<p class="err">${esc(x.data.error || 'Player not found.')}</p>`; return; }
+  const { player: p, own, captain, progress: g } = x.data;
+  const linkedR = p.linked_character_id ? runnerByDb(p.linked_character_id) : null;
+  const shoeSlots = ['DAILY', 'TEMPO', 'RACE DAY'].map(s => `<div class="slot"><span>?</span><small>${s}</small></div>`).join('');
+  CB().innerHTML = `${flash ? `<p class="ok"><b>${esc(flash)}</b></p>` : ''}
+    <div class="pl-top">${avatarHtml(p)}<div class="pc-id"><h3>${esc(p.name.toUpperCase())}</h3>
+      ${p.unknown ? '<p class="pc-tag">Times from before player names existed.</p>' : ''}
+      ${linkedR ? `<p class="pc-tag">Is the real <button class="link" type="button" data-rn="${p.linked_character_id}">${esc(linkedR.full)}</button></p>` : ''}
+      ${g.favorite ? `<span class="pc-type">FAVOURITE: ${esc(g.favorite.name)}</span>` : ''}</div></div>
+    <dl class="pc-game">
+      <div><dt>POINTS</dt><dd>${g.points.balance}</dd></div><div><dt>LIFETIME POINTS</dt><dd>${g.points.lifetime}</dd></div>
+      <div><dt>STREAK</dt><dd>${g.streak} ${g.streak === 1 ? 'day' : 'days'}</dd></div><div><dt>BEST STREAK</dt><dd>${g.best_streak} ${g.best_streak === 1 ? 'day' : 'days'}</dd></div>
+      <div><dt>RACES</dt><dd>${g.races}</dd></div><div><dt>TOTAL</dt><dd>${g.km} km</dd></div>
+      <div class="wide"><dt>GAME PB (CLASSIC, ANY RUNNER)</dt><dd>${g.pb.classic ? fmt(g.pb.classic) : '--:--'}</dd></div></dl>
+    ${g.per_character.length ? `<h3>GAME PBS PER RUNNER</h3><ol class="board">${g.per_character.map(c => `<li class="tap" data-rn="${c.character_id}" role="button" tabindex="0"><span class="pos">${c.races}x</span><span>${esc(c.name)}</span><span class="t">${fmt(c.best)}</span></li>`).join('')}</ol>` : ''}
+    ${g.recent.length ? `<h3>RECENT RACES</h3><ol class="board">${g.recent.map((r, i) => `<li><span class="pos">${i + 1}</span><span>as ${esc(r.character)} <small>${esc(r.day.slice(5).split('-').reverse().join('/'))}${r.points ? ' · +' + r.points : ''}</small></span><span class="t">${fmt(r.time_s)}</span></li>`).join('')}</ol>` : '<p class="note">No races yet.</p>'}
+    <h3>SHOE WALL</h3>
+    <div class="shoewall" aria-label="Shoe wall and rotation, empty for now"><div class="shoe-rot">${shoeSlots}</div>
+      <p class="note">The shoe shop opens soon. Your shoes, rotation and km per shoe will live here. Your RACE DAY shoe runs with every runner you pick.</p></div>
+    ${own ? `<div class="actions"><button class="btn hot" type="button" data-pp="edit">EDIT PLAYER</button><button class="btn alt" type="button" data-pp="recovery">NEW RECOVERY CODE</button></div>
+      ${!p.linked_character_id ? '<p class="note">Are you in the roster? Open your runner and tap THIS IS ME, or add yourself as a new runner.</p><div class="actions"><button class="btn alt" type="button" data-pp="addme">ADD ME AS A RUNNER</button></div>' : ''}` : ''}
+    ${!own && p.avatar_custom ? '<div class="actions"><button class="btn alt" type="button" data-pp="ravatar">REPORT AVATAR</button></div>' : ''}
+    ${!own && captain && !p.unknown ? '<div class="actions"><button class="btn alt" type="button" data-pp="caprec">MAKE RECOVERY CODE</button></div>' : ''}
+    <div class="actions"><button class="btn alt" type="button" data-cv="close">CLOSE</button></div>`;
+  CB().querySelectorAll('[data-rn]').forEach(b => b.addEventListener('click', () => openProfileCard(runnerByDb(+b.dataset.rn))));
+  CB().querySelectorAll('[data-pp]').forEach(b => b.addEventListener('click', async () => {
+    const a = b.dataset.pp;
+    if (a === 'edit') return CLUB_VIEWS.player();
+    if (a === 'addme') return CLUB_VIEWS.character({ thisIsMe: true });
+    if (a === 'ravatar') return CLUB_VIEWS.report({ kind:'avatar', player_id: p.id, name: p.name, back:() => openPlayerProfile(p.id) });
+    if (a === 'recovery' || a === 'caprec'){
+      if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'OLD CODE STOPS WORKING. TAP AGAIN'; return; }
+      try { const r = await apiCall(`/api/players/${p.id}/recovery`, { method:'POST' }); if (r.ok) CLUB_VIEWS.code({ code: r.data.recovery_code, kind: own ? 'recovery' : 'recovery-other', name: p.name, back:() => openPlayerProfile(p.id) }); } catch(e){}
+    }
+  }));
+}
+function avatarHtml(p, small){
+  const cls = small ? 'av small' : 'av';
+  if (p.avatar) return `<span class="${cls}"><img src="${esc(p.avatar)}" alt=""></span>`;
+  const ini = String(p.name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return `<span class="${cls} ini" aria-hidden="true">${esc(ini)}</span>`;
 }
 // Photo: decode in the browser (JPEG, PNG, WebP, HEIC where supported)
 function loadImageFile(f){
@@ -1811,12 +1919,12 @@ function loadImageFile(f){
     i.onerror = () => { URL.revokeObjectURL(url); rej(new Error(/heic|heif/i.test(f.type + f.name) ? 'This phone cannot open HEIC photos here. Please pick a JPEG or PNG.' : 'Could not read that photo.')); };
     i.src = url; });
 }
-// Crop tool: drag to move, pinch, mouse wheel or slider to zoom. Output 600x800 JPEG under 200 KB,
+// Crop tool: drag to move, pinch, mouse wheel or slider to zoom. Output 3:4 JPEG under 200 KB (600x800 max),
 // re-encoded through a canvas, so EXIF data such as location is never uploaded.
-function makeCropper(host, img, onChange){
-  const VW = 300, VH = 400, iw = img.naturalWidth, ih = img.naturalHeight, base = Math.max(VW / iw, VH / ih);
-  host.innerHTML = `<p class="note">Drag to move, pinch or use the slider to zoom. The photo is cropped to 3:4.</p>
-    <div class="crop-view"><canvas width="${VW}" height="${VH}" aria-label="Crop area"></canvas></div>
+function makeCropper(host, img, onChange, out = { w:600, h:800 }){
+  const VW = 300, VH = Math.round(300 * out.h / out.w), iw = img.naturalWidth, ih = img.naturalHeight, base = Math.max(VW / iw, VH / ih);
+  host.innerHTML = `<p class="note">Drag to move, pinch or use the slider to zoom.</p>
+    <div class="crop-view" style="aspect-ratio:${out.w}/${out.h}"><canvas width="${VW}" height="${VH}" aria-label="Crop area"></canvas></div>
     <label class="statrow"><span>ZOOM</span><input type="range" min="1" max="4" step="0.01" value="1" aria-label="Zoom"><b></b></label>`;
   const cv = host.querySelector('canvas'), g = cv.getContext('2d'), zr = host.querySelector('input');
   let z = 1, cx = iw / 2, cy = ih * 0.42;
@@ -1827,7 +1935,7 @@ function makeCropper(host, img, onChange){
     clamp(); g.imageSmoothingQuality = 'high'; g.clearRect(0, 0, VW, VH); g.drawImage(img, ...src(), 0, 0, VW, VH);
     g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1;
     for (const k of [1, 2]){ g.beginPath(); g.moveTo(VW * k / 3, 0); g.lineTo(VW * k / 3, VH); g.moveTo(0, VH * k / 3); g.lineTo(VW, VH * k / 3); g.stroke(); }
-    clearTimeout(t); t = setTimeout(() => { const c = mk(150, 200); c.getContext('2d').drawImage(img, ...src(), 0, 0, 150, 200); onChange(c.toDataURL('image/jpeg', 0.7)); }, 120);
+    clearTimeout(t); t = setTimeout(() => { const c = mk(150, Math.round(150 * VH / VW)); c.getContext('2d').drawImage(img, ...src(), 0, 0, c.width, c.height); onChange(c.toDataURL('image/jpeg', 0.7)); }, 120);
   };
   const pts = new Map(); let pinch = 0, pz = 1;
   cv.addEventListener('pointerdown', e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1847,20 +1955,20 @@ function makeCropper(host, img, onChange){
   draw();
   return {
     async export(){
-      const c = mk(600, 800), cg = c.getContext('2d'); cg.imageSmoothingQuality = 'high';
-      cg.fillStyle = '#000'; cg.fillRect(0, 0, 600, 800); cg.drawImage(img, ...src(), 0, 0, 600, 800);
-      let out = null;
+      const c = mk(out.w, out.h), cg = c.getContext('2d'); cg.imageSmoothingQuality = 'high';
+      cg.fillStyle = '#000'; cg.fillRect(0, 0, out.w, out.h); cg.drawImage(img, ...src(), 0, 0, out.w, out.h);
+      let blob = null;
       for (const q of [0.8, 0.72, 0.64, 0.56, 0.48, 0.4]){
-        out = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
-        if (out && out.size <= 200 * 1024) return out;
+        blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+        if (blob && blob.size <= 200 * 1024) return blob;
       }
-      if (out && out.size <= 2 * 1024 * 1024) return out;
+      if (blob && blob.size <= 2 * 1024 * 1024) return blob;
       throw new Error('That photo is too big, please pick another one.');
     },
   };
 }
-// Result card image (photo, name, time) for sharing; falls back to a WhatsApp text link.
-async function resultCardBlob(me, t, pos, n){
+// Result card image: "<PLAYER> ran <time> as <RUNNER>", with the runner's photo.
+async function resultCardBlob(me, t, pos, n, who){
   const c = mk(720, 960), g = c.getContext('2d');
   g.fillStyle = '#1b1420'; g.fillRect(0, 0, 720, 960);
   try {
@@ -1870,15 +1978,29 @@ async function resultCardBlob(me, t, pos, n){
       g.imageSmoothingEnabled = !String(src).startsWith('data:'); g.drawImage(img, (720 - w) / 2, Math.min(0, (720 - h) * 0.2), w, h); }
     else { g.font = '300px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(me.emoji || '🏃', 360, 360); }
   } catch(e){}
-  const grad = g.createLinearGradient(0, 520, 0, 720); grad.addColorStop(0, 'rgba(27,20,32,0)'); grad.addColorStop(1, '#1b1420');
-  g.fillStyle = grad; g.fillRect(0, 520, 720, 200);
+  const grad = g.createLinearGradient(0, 480, 0, 720); grad.addColorStop(0, 'rgba(27,20,32,0)'); grad.addColorStop(1, '#1b1420');
+  g.fillStyle = grad; g.fillRect(0, 480, 720, 240);
   g.fillStyle = '#f26a1b'; g.fillRect(0, 720, 720, 8);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
-  g.font = '30px "Press Start 2P", monospace'; g.fillStyle = '#f6efe1'; g.fillText(String(me.full).toUpperCase().slice(0, 18), 36, 690);
+  g.font = '30px "Press Start 2P", monospace'; g.fillStyle = '#f6efe1'; g.fillText(String(who || me.full).toUpperCase().slice(0, 18), 36, who ? 650 : 690);
+  if (who){ g.font = '20px "Press Start 2P", monospace'; g.fillStyle = '#e6f02a'; g.fillText('AS ' + String(me.full).toUpperCase().slice(0, 22), 36, 694); }
   g.font = '72px "Press Start 2P", monospace'; g.fillStyle = '#e6f02a'; g.fillText(fmt(t), 36, 830);
   g.font = '22px "Press Start 2P", monospace'; g.fillStyle = '#f6efe1'; g.fillText((pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + n) + ' · ' + fmt(t / 5) + '/KM', 36, 884);
   g.fillStyle = '#9a90a6'; g.font = '16px "Press Start 2P", monospace'; g.fillText('WOLFPACK RUN · ' + String(NET.club ? NET.club.name : 'Zuiderpark').toUpperCase().slice(0, 24), 36, 930);
   return new Promise(r => c.toBlob(r, 'image/png'));
+}
+// Leaderboard rows: "MAO (as JORDI)" per player, or "JORDI (by Mao)" per runner.
+function boardHtml(rows, group = 'player', hi){
+  if (!rows) return '<li>No connection.</li>';
+  if (!rows.length) return '<li>No times yet. Be the first!</li>';
+  return rows.map((x, i) => {
+    const me = NET.me && x.player_id === NET.me.id;
+    const label = group === 'player'
+      ? `${esc(x.player_name)} <small>as ${esc(x.character_name)}</small>`
+      : `${esc(x.character_name)} <small>by ${esc(x.player_name)}</small>`;
+    const target = group === 'player' && !x.unknown ? `data-pid="${x.player_id}"` : `data-cid="${x.character_id}"`;
+    return `<li class="tap${me || (hi && hi(x)) ? ' me' : ''}" ${target} role="button" tabindex="0"><span class="pos">${i + 1}</span><span>${label}</span><span class="t">${fmt(x.time_s)}</span></li>`;
+  }).join('');
 }
 
 /* ----- club menu ----- */
@@ -1891,6 +2013,7 @@ async function copyText(t, msgEl){
   const done = ok => { if (msgEl) msgEl.textContent = ok ? 'Copied.' : 'Copy failed, select the text and copy it.'; };
   try { await navigator.clipboard.writeText(t); done(true); } catch(e){ done(false); }
 }
+let afterName = null;   // what to do once the player name is set (usually: go to the runner select)
 const CLUB_VIEWS = {
   home(){
     if (!NET.online || !NET.club){
@@ -1899,18 +2022,18 @@ const CLUB_VIEWS = {
         <div class="actions"><button class="btn hot" type="button" data-cv="retry">TRY AGAIN</button></div>`;
       return;
     }
-    const c = NET.club, me = myProfile(), cap = capToken();
+    const c = NET.club;
     $('#clubTitle').textContent = c.name.toUpperCase();
-    CB().innerHTML = `<p class="note">${esc(c.course || '')}${c.captain ? ' · Captain: ' + esc(c.captain) : ''} · ${NET.players.length} runners</p>
+    CB().innerHTML = `<p class="note">${esc(c.course || '')}${c.captain ? ' · Captain: ' + esc(c.captain) : ''} · ${NET.characters.length} runners</p>
       <h3>INVITE YOUR CLUB</h3><p class="note">Share the link, or let people enter the join code.</p>
       <p><span class="code">${esc(c.join_code)}</span></p>
       <div class="actions"><a class="btn hot" href="${esc(waLink(inviteText()))}" target="_blank" rel="noopener" data-track="invite">WHATSAPP INVITE</a>
         <button class="btn alt" type="button" data-cv="copylink">COPY LINK</button></div><p class="note" id="cbMsg" aria-live="polite"></p>
-      <h3>YOUR PROFILE</h3>
-      <div class="actions">${me ? '<button class="btn alt" type="button" data-cv="me">MY PROFILE</button>' : '<button class="btn hot" type="button" data-cv="join">JOIN THIS CLUB</button><button class="btn alt" type="button" data-cv="recover">RECOVERY CODE</button>'}</div>
+      <h3>YOU</h3>
+      <div class="actions">${NET.me ? '<button class="btn alt" type="button" data-cv="me">MY PLAYER PROFILE</button>' : '<button class="btn hot" type="button" data-cv="name">PICK A PLAYER NAME</button><button class="btn alt" type="button" data-cv="recover">RECOVERY CODE</button>'}</div>
       <h3>LEADERBOARD</h3><div class="actions"><button class="btn alt" type="button" data-cv="board">SHOW LEADERBOARD</button></div>
-      ${NET.captain ? `<h3>CAPTAIN</h3><p class="note">You are the captain of this club. Tap a runner to open their profile: you can edit it, remove it, or make a recovery code so they can claim it on their phone. Keep your captain link private.</p>
-        <div class="actions"><button class="btn alt" type="button" data-cv="reports">REPORTS</button><button class="btn alt" type="button" data-cv="copycap">COPY CAPTAIN LINK</button></div>` : ''}
+      ${NET.captain ? `<h3>CAPTAIN</h3><p class="note">You are the captain. Tap a runner to edit it, remove it, or make a claim code so the real person can link to it. Keep your captain link private.</p>
+        <div class="actions"><button class="btn alt" type="button" data-cv="addrunner">ADD RUNNER</button><button class="btn alt" type="button" data-cv="reports">REPORTS</button><button class="btn alt" type="button" data-cv="copycap">COPY CAPTAIN LINK</button></div>` : ''}
       <h3>OTHER CLUBS</h3>
       <form id="codeForm"><label for="joinCode">Join code</label><div class="two"><input id="joinCode" maxlength="6" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase"><button class="btn alt" type="submit">GO</button></div><p class="err" id="codeErr"></p></form>
       <div class="actions"><button class="btn alt" type="button" data-cv="create">CREATE A NEW CLUB</button>
@@ -1928,10 +2051,10 @@ const CLUB_VIEWS = {
     CB().innerHTML = `<form id="createForm">
       <label>Club name<input id="cName" maxlength="40" required placeholder="Wolfpack Westbroek"></label>
       <label>Home course<input id="cCourse" maxlength="60" placeholder="Westbroekpark, Den Haag"></label>
-      <label>Your name (captain)<input id="cCaptain" maxlength="40" required></label>
+      <label>Your player name (captain)<input id="cCaptain" maxlength="20" minlength="2" required></label>
       <label>Email to recover your captain link (optional)<input id="cEmail" type="email" maxlength="120"></label>
       <label class="check"><span>Club colour</span><input id="cColor" type="color" value="#f26a1b"></label>
-      <p class="note">No passwords: you get a private captain link to manage the club. Keep it safe.</p>
+      <p class="note">No passwords: you get a private captain link to manage the club. Keep it safe. You are also added as the first runner.</p>
       <p class="err" id="cErr" aria-live="polite"></p>
       <div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button><button class="btn hot" type="submit">CREATE CLUB</button></div></form>`;
     $('#createForm').addEventListener('submit', async e => {
@@ -1950,25 +2073,47 @@ const CLUB_VIEWS = {
   created(){
     CLUB_VIEWS.home();
     const rc = store.get('newrec.' + clubSlug, null); store.set('newrec.' + clubSlug, null);
-    CB().insertAdjacentHTML('afterbegin', `<p class="ok"><b>Club created!</b> Invite your runners below, then add your 5K PB and photo in MY PROFILE. Your captain link is saved on this device; copy it somewhere safe too.</p>
-      ${rc ? `<p>Your profile recovery code (shown once, keep it private): <span class="code">${esc(rc)}</span></p>` : ''}`);
+    CB().insertAdjacentHTML('afterbegin', `<p class="ok"><b>Club created!</b> Invite your runners below. Add your 5K PB and photo on your runner card (tap yourself on the runner screen). Your captain link is saved on this device; copy it somewhere safe too.</p>
+      ${rc ? `<p>Your player recovery code (shown once, keep it private): <span class="code">${esc(rc)}</span></p>` : ''}`);
   },
-  card(r){ openProfileCard(r); },
-  async me(){
-    const me = myProfile();
-    if (me){ const r = runnerByDb(me.id); return openProfileCard(r); }
-    $('#clubTitle').textContent = 'MY PROFILE';
-    CB().innerHTML = `<p>You do not have a profile in <b>${esc(NET.club.name)}</b> on this phone yet.</p>
-      <div class="actions"><button class="btn hot" type="button" data-cv="join">JOIN THIS CLUB</button></div>
-      <p class="note">Already made one on another phone? Use the recovery code you saved when you joined.</p>
-      <div class="actions"><button class="btn alt" type="button" data-cv="recover">I HAVE A RECOVERY CODE</button></div>`;
+  // "What's your player name?" before the runner select
+  name(){
+    const migrated = !!NET.me;
+    $('#clubTitle').textContent = 'PLAYER NAME';
+    CB().innerHTML = `<form id="nameForm"><p class="lead-dark">${migrated ? 'Wolfpack Run now keeps <b>you</b> (the player) apart from the runner you race as. Please check your player name.' : "What's your player name?"}</p>
+      <p class="note">Your name on the leaderboards, for example "Mao (as Jordi) 17:52". You can race as any runner in ${esc(NET.club.name)}.</p>
+      <label>Player name (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required autocomplete="nickname" value="${esc(migrated ? NET.me.name : mostPickedName())}"></label>
+      <p class="err" id="plErr" aria-live="polite"></p>
+      <div class="actions"><button class="btn hot" type="submit">${migrated ? "THAT'S ME" : "LET'S GO"}</button></div>
+      ${migrated ? '' : '<p class="note">Played on another phone before? <button class="link" type="button" data-cv="recover">Use your recovery code.</button></p>'}</form>`;
+    const inp = $('#plName'); setTimeout(() => { try { inp.focus(); inp.select(); } catch(e){} }, 50);
+    $('#nameForm').addEventListener('submit', async e => {
+      e.preventDefault(); $('#plErr').textContent = '';
+      const btn = $('#nameForm button[type=submit]'); btn.disabled = true;
+      try {
+        let rc = null;
+        if (migrated){
+          const r = await apiCall('/api/players/' + NET.me.id, { method:'PATCH', json:{ name: inp.value } });
+          if (!r.ok){ $('#plErr').textContent = r.data.error || 'Could not save.'; return; }
+        } else {
+          const r = await apiCall(`/api/clubs/${clubSlug}/players`, { method:'POST', json:{ name: inp.value } });
+          if (!r.ok){ $('#plErr').textContent = r.data.error || 'Could not save.'; return; }
+          store.set('me.' + clubSlug, { id: r.data.player.id, token: r.data.device_token }); rc = r.data.recovery_code;
+        }
+        await loadClub();
+        if (rc) return CLUB_VIEWS.code({ code: rc, kind:'recovery', welcome: true });
+        closeClub(); const go = afterName; afterName = null; if (go) go();
+      } catch(err){ $('#plErr').textContent = 'No connection. Try again.'; }
+      finally { btn.disabled = false; }
+    });
   },
+  me(){ if (NET.me) return openPlayerProfile(NET.me.id); CLUB_VIEWS.name(); },
   recover(){
-    $('#clubTitle').textContent = 'RECOVER PROFILE';
-    CB().innerHTML = `<form id="recForm"><p class="note">Enter the recovery code of your profile in ${esc(NET.club.name)}. No code? Ask your captain to make a new one for you.</p>
+    $('#clubTitle').textContent = 'RECOVERY CODE';
+    CB().innerHTML = `<form id="recForm"><p class="note">Enter the recovery code of your player in ${esc(NET.club.name)}. No code? Ask your captain to make a new one for you.</p>
       <label>Recovery code<input id="recCode" maxlength="9" autocomplete="off" placeholder="ABCD-2345" style="text-transform:uppercase;letter-spacing:.15em"></label>
       <p class="err" id="recErr" aria-live="polite"></p>
-      <div class="actions"><button class="btn alt" type="button" data-cv="me">BACK</button><button class="btn hot" type="submit">OPEN MY PROFILE</button></div></form>`;
+      <div class="actions"><button class="btn alt" type="button" data-cv="name">BACK</button><button class="btn hot" type="submit">OPEN MY PLAYER</button></div></form>`;
     $('#recForm').addEventListener('submit', async e => {
       e.preventDefault(); $('#recErr').textContent = '';
       try {
@@ -1976,34 +2121,102 @@ const CLUB_VIEWS = {
         if (!r.ok){ $('#recErr').textContent = r.data.error || 'That did not work.'; return; }
         store.set('me.' + clubSlug, { id: r.data.player.id, token: r.data.device_token });
         await loadClub();
-        CB().innerHTML = `<p class="ok"><b>Welcome back, ${esc(r.data.player.name)}!</b> This phone can now edit your profile.</p>
-          <div class="actions"><button class="btn hot" type="button" data-cv="me">MY PROFILE</button></div>`;
+        CB().innerHTML = `<p class="ok"><b>Welcome back, ${esc(r.data.player.name)}!</b> Your points, streak and times are on this phone now.</p>
+          <div class="actions"><button class="btn alt" type="button" data-cv="me">MY PLAYER PROFILE</button><button class="btn hot" type="button" data-cv="go">LET'S RUN</button></div>`;
       } catch(err){ $('#recErr').textContent = 'No connection. Try again.'; }
     });
   },
-  recovery(info){
-    $('#clubTitle').textContent = 'RECOVERY CODE';
-    const text = `My Wolfpack Run recovery code for ${NET.club.name}: ${info.code}\n${clubLink()}`;
-    CB().innerHTML = `${info.welcome ? `<p class="ok"><b>Welcome to ${esc(NET.club.name)}!</b> Your runner is in the carousel now.</p>` : ''}
-      <p>${info.forOther ? 'Recovery code for <b>' + esc(info.name) + '</b>. Send it to them privately: with it they can open and edit this profile on their phone.' : 'Save this code. With it you can open your profile on a new phone. It is shown only once, so keep it somewhere safe and private.'}</p>
+  // shows a one-time code: player recovery code or a runner's claim code
+  code(info){
+    const claim = info.kind === 'claim', other = info.kind === 'recovery-other';
+    $('#clubTitle').textContent = claim ? 'CLAIM CODE' : 'RECOVERY CODE';
+    const text = claim ? `Your Wolfpack Run claim code for the runner ${info.name} in ${NET.club.name}: ${info.code}\nOpen ${clubLink()}, tap your runner and choose THIS IS ME.`
+      : other ? `Your Wolfpack Run recovery code for ${NET.club.name}: ${info.code}\n${clubLink()}` : `My Wolfpack Run recovery code for ${NET.club.name}: ${info.code}\n${clubLink()}`;
+    CB().innerHTML = `${info.welcome ? `<p class="ok"><b>Welcome to ${esc(NET.club.name)}, ${esc(playerName() || '')}!</b></p>` : ''}
+      <p>${claim ? `Claim code for the runner <b>${esc(info.name)}</b>. Send it privately to the real ${esc(info.name)}: with it they link their player to this runner and can edit its photo, story and real PBs.`
+        : other ? `Recovery code for the player <b>${esc(info.name)}</b>. Send it to them privately.` : 'Save this code. With it you open your player (points, streak, times) on a new phone. It is shown only once.'}</p>
       <p><span class="code" id="recShow">${esc(info.code)}</span></p>
       <div class="actions"><button class="btn alt" type="button" id="recCopy">COPY CODE</button>
-        <a class="btn alt" href="${esc(waLink(text))}" target="_blank" rel="noopener">${info.forOther ? 'SEND ON WHATSAPP' : 'SEND TO MYSELF'}</a></div>
+        <a class="btn alt" href="${esc(waLink(text))}" target="_blank" rel="noopener">${claim || other ? 'SEND ON WHATSAPP' : 'SEND TO MYSELF'}</a></div>
       <p class="note" id="recMsg" aria-live="polite"></p>
-      <p class="note">${info.forOther ? 'Any older code for this profile has stopped working.' : 'Making a new code later stops this one from working.'}</p>
-      <div class="actions">${info.welcome ? '<button class="btn alt" type="button" data-cv="me">MY PROFILE</button>' : ''}<button class="btn hot" type="button" data-cv="${info.welcome ? 'close' : 'me'}">${info.welcome ? "LET'S RUN" : 'DONE'}</button></div>`;
+      <p class="note">${claim ? 'It works once. A new code replaces the old one.' : 'Making a new code later stops this one from working.'}</p>
+      <div class="actions">${info.welcome ? `<button class="btn hot" type="button" data-cv="go">CHOOSE YOUR RUNNER</button>` : '<button class="btn hot" type="button" id="codeDone">DONE</button>'}</div>`;
     $('#recCopy').addEventListener('click', () => copyText(info.code, $('#recMsg')));
+    const d = $('#codeDone'); if (d) d.addEventListener('click', () => info.back ? info.back() : closeClub());
   },
+  // THIS IS ME: link my player to a runner (captains link directly, others need the claim code)
+  claim(r){
+    $('#clubTitle').textContent = 'THIS IS ME';
+    CB().innerHTML = `<form id="clmForm"><p>Link your player <b>${esc(playerName())}</b> to the runner <b>${esc(r.full)}</b>?</p>
+      <p class="note">Then you can edit this runner's photo, story and real PBs. Anyone can still race as ${esc(r.full)}. ${NET.captain ? 'As captain you can link directly.' : 'Ask your captain for the claim code of this runner.'}</p>
+      ${NET.captain ? '' : '<label>Claim code<input id="clmCode" maxlength="9" autocomplete="off" placeholder="ABCD-2345" style="text-transform:uppercase;letter-spacing:.15em"></label>'}
+      <p class="err" id="clmErr" aria-live="polite"></p>
+      <div class="actions"><button class="btn alt" type="button" id="clmBack">BACK</button><button class="btn hot" type="submit">THIS IS ME</button></div></form>`;
+    $('#clmBack').addEventListener('click', () => openProfileCard(r));
+    $('#clmForm').addEventListener('submit', async e => {
+      e.preventDefault(); $('#clmErr').textContent = '';
+      try {
+        const x = await apiCall(`/api/players/${NET.me.id}/link`, { method:'POST', json:{ character_id: r.dbId, code: $('#clmCode') ? $('#clmCode').value : '' } });
+        if (!x.ok){ $('#clmErr').textContent = x.data.error || 'That did not work.'; return; }
+        await loadClub(); openProfileCard(runnerByDb(r.dbId), 'Linked! This runner is you now.');
+      } catch(err){ $('#clmErr').textContent = 'No connection. Try again.'; }
+    });
+  },
+  // edit my PLAYER: name and avatar (none, a runner's photo, or my own upload)
+  player(){
+    const p = NET.me; if (!p) return CLUB_VIEWS.name();
+    $('#clubTitle').textContent = 'EDIT PLAYER';
+    const runners = NET.characters.filter(c => c.photo);
+    CB().innerHTML = `<form id="plForm">
+      <label>Player name (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required value="${esc(p.name)}"></label>
+      <h3>AVATAR</h3><p class="note">Pick a runner's photo, or upload your own small photo.</p>
+      <div class="av-pick" role="radiogroup" aria-label="Avatar">
+        <label class="av-opt"><input type="radio" name="av" value="none" ${!p.avatar_character_id && !p.avatar_custom ? 'checked' : ''}><span class="av ini">${esc(p.name.slice(0, 2).toUpperCase())}</span></label>
+        ${p.avatar_custom ? `<label class="av-opt"><input type="radio" name="av" value="keep" checked><span class="av"><img src="${esc(p.avatar)}" alt="Your own photo"></span></label>` : ''}
+        ${runners.map(c => `<label class="av-opt"><input type="radio" name="av" value="${c.id}" ${!p.avatar_custom && p.avatar_character_id === c.id ? 'checked' : ''}><span class="av"><img src="${esc(c.photo)}" alt="${esc(c.nickname || c.name)}"></span></label>`).join('')}
+      </div>
+      <label>Upload my own (JPEG, PNG, WebP or HEIC, max 10 MB)<input id="avFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
+      <div id="avCrop" class="crop-wrap" hidden></div>
+      <label class="check"><input id="avPerm" type="checkbox"><span>I have permission from the person in this photo to use it.</span></label>
+      <p class="err" id="plErr" aria-live="polite"></p>
+      <div class="actions"><button class="btn alt" type="button" data-cv="me">BACK</button><button class="btn hot" type="submit">SAVE</button></div></form>`;
+    let cropper = null;
+    $('#avFile').addEventListener('change', async () => {
+      $('#plErr').textContent = ''; const f = $('#avFile').files[0]; if (!f) return;
+      try { if (f.size > 10 * 1024 * 1024) throw new Error('That photo is bigger than 10 MB. Please pick a smaller one.');
+        const img = await loadImageFile(f); $('#avCrop').hidden = false; cropper = makeCropper($('#avCrop'), img, () => {}, { w:300, h:400 }); }
+      catch(err){ cropper = null; $('#avCrop').hidden = true; $('#plErr').textContent = err.message; }
+    });
+    $('#plForm').addEventListener('submit', async e => {
+      e.preventDefault(); $('#plErr').textContent = '';
+      if (cropper && !$('#avPerm').checked){ $('#plErr').textContent = 'Please tick that you have permission from the person in this photo.'; return; }
+      const av = (CB().querySelector('input[name=av]:checked') || {}).value;
+      const body = { name: $('#plName').value };
+      if (!cropper && av && av !== 'keep') body.avatar_character_id = av === 'none' ? null : +av;
+      try {
+        const r = await apiCall('/api/players/' + p.id, { method:'PATCH', json: body });
+        if (!r.ok){ $('#plErr').textContent = r.data.error || 'Could not save.'; return; }
+        if (!cropper && av === 'none' && p.avatar_custom) await apiCall(`/api/players/${p.id}/avatar`, { method:'DELETE' });
+        if (cropper){
+          const u = await apiCall(`/api/players/${p.id}/avatar`, { method:'PUT', body: await cropper.export(), headers:{ 'content-type':'image/jpeg', 'x-photo-permission':'yes' } }, 20000);
+          if (!u.ok){ $('#plErr').textContent = u.data.error || 'Saved, but the photo upload failed.'; return; }
+        }
+        await loadClub(); openPlayerProfile(p.id, 'Saved!');
+      } catch(err){ $('#plErr').textContent = 'No connection. Try again.'; }
+    });
+  },
+  addrunner(){ CLUB_VIEWS.character({}); },
   async reports(){
     $('#clubTitle').textContent = 'REPORTS';
     CB().innerHTML = '<p>Loading...</p>';
     let list = [];
     try { const r = await apiCall(`/api/clubs/${clubSlug}/reports`); if (!r.ok){ CB().innerHTML = `<p class="err">${esc(r.data.error || 'Could not load reports.')}</p>`; return; } list = r.data.reports; }
     catch(e){ CB().innerHTML = '<p class="err">No connection.</p>'; return; }
-    CB().innerHTML = `<p class="note">Reports from other players about a photo or bio in your club. Removing deletes that photo or bio. The site admin sees these reports too.</p>
-      ${list.length ? list.map(x => `<div class="rep-item"><p style="margin:0"><b>${esc(x.name)}</b> · ${x.kind === 'photo' ? 'PHOTO' : 'BIO'}<br><small>${esc(x.reason || '')}</small></p>
-        ${x.kind === 'photo' && x.photo ? `<img class="photo-prev" src="${esc(x.photo)}" alt="Reported photo of ${esc(x.name)}">` : ''}${x.kind === 'story' && x.story ? `<p class="story">${esc(x.story)}</p>` : ''}
-        <div class="actions"><button class="btn alt" type="button" data-rep="${x.id}" data-act="dismiss">KEEP IT</button><button class="btn hot" type="button" data-rep="${x.id}" data-act="remove">REMOVE ${x.kind === 'photo' ? 'PHOTO' : 'BIO'}</button></div></div>`).join('')
+    const what = k => k === 'photo' ? 'RUNNER PHOTO' : k === 'avatar' ? 'PLAYER AVATAR' : 'RUNNER BIO';
+    CB().innerHTML = `<p class="note">Reports from players about a runner photo or bio, or a player avatar. Removing deletes it. The site admin sees these reports too.</p>
+      ${list.length ? list.map(x => `<div class="rep-item"><p style="margin:0"><b>${esc(x.name)}</b> · ${what(x.kind)}<br><small>${esc(x.reason || '')}</small></p>
+        ${x.kind !== 'story' && x.photo ? `<img class="photo-prev" src="${esc(x.photo)}" alt="Reported photo of ${esc(x.name)}">` : ''}${x.kind === 'story' && x.story ? `<p class="story">${esc(x.story)}</p>` : ''}
+        <div class="actions"><button class="btn alt" type="button" data-rep="${x.id}" data-act="dismiss">KEEP IT</button><button class="btn hot" type="button" data-rep="${x.id}" data-act="remove">REMOVE ${x.kind === 'story' ? 'BIO' : 'PHOTO'}</button></div></div>`).join('')
         : '<p class="ok">No open reports. Nice.</p>'}
       <div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button></div>`;
     CB().querySelectorAll('[data-rep]').forEach(b => b.addEventListener('click', async () => {
@@ -2011,43 +2224,45 @@ const CLUB_VIEWS = {
       await loadClub(); CLUB_VIEWS.reports();
     }));
   },
-  profile(target){
-    // target: undefined = join, a runner object = edit
-    const editing = !!target, p = editing ? NET.players.find(x => x.id === target.dbId) || {} : {};
-    const legacy = editing && !!p.legacy_id;
-    $('#clubTitle').textContent = editing ? 'EDIT ' + String(p.nickname || p.name || '').toUpperCase() : 'JOIN ' + NET.club.name.toUpperCase();
-    const mine = editing && myProfile() && myProfile().id === p.id;
-    CB().innerHTML = `<div class="pc-preview" aria-label="Live preview of the profile card"><h3>PREVIEW</h3><div id="pPreview"></div></div>
+  // CHARACTER edit / create. Captain: everything incl. game stats. Linked player: photo, tagline, story, real PBs.
+  character(opt = {}){
+    const r = opt.runner, editing = !!r, c = editing ? NET.characters.find(x => x.id === r.dbId) || {} : {};
+    const legacy = editing && !!c.legacy_id, captain = NET.captain, full = captain;
+    $('#clubTitle').textContent = editing ? 'EDIT ' + String(c.nickname || c.name || '').toUpperCase() : opt.thisIsMe ? 'ADD ME AS A RUNNER' : 'ADD RUNNER';
+    const dis = full ? '' : 'disabled';
+    CB().innerHTML = `<div class="pc-preview" aria-label="Live preview of the runner card"><h3>PREVIEW</h3><div id="pPreview"></div></div>
       <form id="profForm">
-      <div class="two"><label>Name<input id="pName" maxlength="40" required value="${esc(p.name || '')}"></label><label>Nickname in game<input id="pNick" maxlength="16" value="${esc(p.nickname || '')}"></label></div>
-      <label>Tagline (max 30)<input id="pTag" maxlength="${p.tagline && p.tagline.length > 30 ? p.tagline.length : 30}" placeholder="Mr. 5K" value="${esc(p.tagline || '')}"></label>
-      <div class="two"><label>5K PB (required)<input id="pB5" inputmode="numeric" placeholder="18:49" value="${p.pb5k ? fmt(p.pb5k) : ''}" ${legacy ? '' : 'required'}></label><label>10K PB<input id="pB10" inputmode="numeric" placeholder="39:18" value="${p.pb10k ? fmt(p.pb10k) : ''}"></label></div>
-      <div class="two"><label>Half marathon<input id="pBH" inputmode="numeric" placeholder="1:26:00" value="${p.pbhalf ? fmtLong(p.pbhalf) : ''}"></label><label>Marathon<input id="pBM" inputmode="numeric" placeholder="3:05:00" value="${p.pbmar ? fmtLong(p.pbmar) : ''}"></label></div>
-      <label>Bio (max 280)<textarea id="pStory" maxlength="280">${esc(p.story || '')}</textarea><small class="note" id="pCount"></small></label>
-      <label class="check"><span>Kit colour</span><input id="pColor" type="color" value="${esc(p.color || NET.club.color || '#f26a1b')}"></label>
+      ${!full && editing ? '<p class="note">You are linked to this runner: you can change the photo, tagline, story and real PBs. Name and game stats are set by the captain.</p>' : ''}
+      <div class="two"><label>Runner name<input id="pName" maxlength="40" required ${dis} value="${esc(c.name || (opt.thisIsMe && NET.me ? NET.me.name : ''))}"></label><label>Nickname in game<input id="pNick" maxlength="16" ${dis} value="${esc(c.nickname || '')}"></label></div>
+      <label>Tagline (max 30)<input id="pTag" maxlength="${c.tagline && c.tagline.length > 30 ? c.tagline.length : 30}" placeholder="Mr. 5K" value="${esc(c.tagline || '')}"></label>
+      <p class="note">Real-life PBs (shown on the card, never mixed with game times).</p>
+      <div class="two"><label>5K PB (required)<input id="pB5" inputmode="numeric" placeholder="18:49" value="${c.pb5k ? fmt(c.pb5k) : ''}" ${legacy ? '' : 'required'}></label><label>10K PB<input id="pB10" inputmode="numeric" placeholder="39:18" value="${c.pb10k ? fmt(c.pb10k) : ''}"></label></div>
+      <div class="two"><label>Half marathon<input id="pBH" inputmode="numeric" placeholder="1:26:00" value="${c.pbhalf ? fmtLong(c.pbhalf) : ''}"></label><label>Marathon<input id="pBM" inputmode="numeric" placeholder="3:05:00" value="${c.pbmar ? fmtLong(c.pbmar) : ''}"></label></div>
+      <label>Story (max 280)<textarea id="pStory" maxlength="280">${esc(c.story || '')}</textarea><small class="note" id="pCount"></small></label>
+      <label class="check"><span>Kit colour</span><input id="pColor" type="color" ${dis} value="${esc(c.color || NET.club.color || '#f26a1b')}"></label>
       <h3>PHOTO</h3>
       <label>Choose a photo (JPEG, PNG, WebP or HEIC, max 10 MB)<input id="pFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
       <div id="pCrop" class="crop-wrap" hidden></div>
       <label class="check"><input id="pPerm" type="checkbox"><span>I have permission from the person in this photo to use it.</span></label>
-      <h3>STATS</h3><div id="pStats"></div>
+      <h3>GAME STATS</h3><div id="pStats"></div>
       <p class="err" id="pErr" aria-live="polite"></p>
-      <div class="actions"><button class="btn alt" type="button" data-cv="${editing ? 'back' : 'me'}">BACK</button><button class="btn hot" type="submit">${editing ? 'SAVE' : 'JOIN CLUB'}</button></div>
-      ${editing && (mine || NET.captain) && (p.photo && !String(p.photo).startsWith('/img/') || p.photo && String(p.photo).startsWith('/img/u/') || p.story) ? `<div class="actions">${p.photo && String(p.photo).startsWith('/img/u/') ? '<button class="btn alt" type="button" id="pDelPhoto">REMOVE PHOTO</button>' : ''}${p.story ? '<button class="btn alt" type="button" id="pDelStory">REMOVE BIO</button>' : ''}</div>` : ''}
-      ${!editing ? '<p class="note">Already have a profile on another phone? <button class="link" type="button" data-cv="recover">Use your recovery code.</button></p>' : ''}
+      <div class="actions"><button class="btn alt" type="button" id="pBack">BACK</button><button class="btn hot" type="submit">${editing ? 'SAVE' : 'ADD RUNNER'}</button></div>
+      ${editing && (c.photo && String(c.photo).startsWith('/img/u/') || c.story) ? `<div class="actions">${c.photo && String(c.photo).startsWith('/img/u/') ? '<button class="btn alt" type="button" id="pDelPhoto">REMOVE PHOTO</button>' : ''}${c.story ? '<button class="btn alt" type="button" id="pDelStory">REMOVE STORY</button>' : ''}</div>` : ''}
     </form>`;
-    CB()._back = target;
+    $('#pBack').addEventListener('click', () => editing ? openProfileCard(r) : opt.thisIsMe ? openPlayerProfile(NET.me.id) : CLUB_VIEWS.home());
     const count = () => { $('#pCount').textContent = (280 - $('#pStory').value.length) + ' characters left'; };
     $('#pStory').addEventListener('input', count); count();
-    // stats: FAST + SLOW = 6 (fast twitch slider), LOVE + JUMP = 8, 14 in total
+    // stats: FAST + SLOW = 6 (fast twitch slider), LOVE + JUMP = 8, 14 in total. Captain only.
     const pbVals = () => ({ t5: parseTime($('#pB5').value), t10: parseTime($('#pB10').value), th: parseTime($('#pBH').value), tm: parseTime($('#pBM').value) });
     const suggested = () => { const v = pbVals(); return suggestStats(v.t5 || null, v.t10 || null, v.tm || null); };
-    let custom = editing && !!p.stats_locked && !legacy;
-    let stats = { ...(p.stats || suggested()) };
+    let custom = editing && !!c.stats_locked && !legacy;
+    let stats = { ...(c.stats || suggested()) };
     const drawStats = () => {
       if (legacy){ $('#pStats').innerHTML = '<p class="note">The original Wolfpack runners keep their hand-made stats, so the classic game plays the same.</p>'; return; }
       if (!custom) stats = suggested();
       const pct = Math.round(stats.fast / 6 * 100);
-      $('#pStats').innerHTML = `<p class="note">${custom ? 'Your own mix.' : 'Suggested from your PBs (Riegel formula): a strong 10K or marathon for your 5K means more slow twitch.'} Budget: 14 points.</p>
+      if (!captain){ $('#pStats').innerHTML = `<p class="note">${editing ? '' : 'Suggested from the PBs (Riegel formula). '}SPD ${stats.fast} · END ${stats.slow} · LOVE ${stats.love} · JMP ${stats.jump} (${pct}% fast twitch, ${runnerType(stats.fast)}). Only the captain can change game stats.</p>`; return; }
+      $('#pStats').innerHTML = `<p class="note">${custom ? 'Set by hand.' : 'Suggested from the PBs (Riegel formula): a strong 10K or marathon for the 5K means more slow twitch.'} Budget: 14 points.</p>
         <div class="statrow"><span>FAST TWITCH</span><input type="range" min="1" max="5" value="${stats.fast}" data-st="fast" aria-label="Fast twitch, ${pct} percent"><b>${pct}%</b></div>
         <p class="note tw-note">SPD ${stats.fast} · END ${stats.slow} · ${runnerType(stats.fast)}</p>
         <div class="statrow"><span>LOVE</span><input type="range" min="3" max="5" value="${stats.love}" data-st="love" aria-label="Love"><b>${stats.love}</b></div>
@@ -2063,16 +2278,15 @@ const CLUB_VIEWS = {
       }));
       const sg = $('#pSuggest'); if (sg) sg.addEventListener('click', () => { custom = false; drawStats(); preview(); });
     };
-    // crop tool + live preview
     let cropper = null, cropPreview = null;
     const preview = () => {
-      const v = pbVals(), base = editing ? (target || {}) : {};
+      const v = pbVals(), base = editing ? r : {};
       $('#pPreview').innerHTML = cardHtml({
-        name: $('#pName').value || 'Your name', nickname: $('#pNick').value, tagline: $('#pTag').value, story: $('#pStory').value,
+        name: $('#pName').value || 'Runner name', nickname: $('#pNick').value, tagline: $('#pTag').value, story: $('#pStory').value,
         pb5k: v.t5 || null, pb10k: v.t10 || null, pbhalf: v.th || null, pbmar: v.tm || null,
         stats: legacy ? { fast: base.spd, slow: base.st, love: base.love, jump: base.jmp } : stats,
         photo: cropPreview || (editing ? base.photo : null), emoji: cropPreview ? null : (editing ? base.emoji : null),
-        placeholder: !cropPreview && !(editing && base.photo) ? true : false, kit: $('#pColor').value, verse: base.verse,
+        kit: $('#pColor').value, verse: base.verse,
       }, { compact: true });
     };
     ['#pName', '#pNick', '#pTag', '#pStory', '#pColor'].forEach(id => $(id).addEventListener('input', preview));
@@ -2090,109 +2304,99 @@ const CLUB_VIEWS = {
     });
     const del = (id, what) => { const b = $(id); if (b) b.addEventListener('click', async () => {
       if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'TAP AGAIN TO CONFIRM'; return; }
-      try { await apiCall(`/api/players/${p.id}/${what}`, { method:'DELETE' }); await loadClub(); openProfileCard(runnerByDb(p.id)); } catch(e){ $('#pErr').textContent = 'No connection.'; } }); };
+      try { await apiCall(`/api/characters/${c.id}/${what}`, { method:'DELETE' }); await loadClub(); openProfileCard(runnerByDb(c.id)); } catch(e){ $('#pErr').textContent = 'No connection.'; } }); };
     del('#pDelPhoto', 'photo'); del('#pDelStory', 'story');
     $('#profForm').addEventListener('submit', async e => {
       e.preventDefault(); $('#pErr').textContent = '';
       const v = pbVals();
       if ([v.t5, v.t10, v.th, v.tm].some(Number.isNaN)) { $('#pErr').textContent = 'Write times like 18:49 or 1:26:00.'; return; }
-      if (!legacy && !v.t5){ $('#pErr').textContent = 'Please add your 5K PB.'; return; }
+      if (!legacy && !v.t5){ $('#pErr').textContent = 'Please add the 5K PB.'; return; }
       if (cropper && !$('#pPerm').checked){ $('#pErr').textContent = 'Please tick that you have permission from the person in this photo.'; return; }
-      const body = { name:$('#pName').value, nickname:$('#pNick').value, tagline:$('#pTag').value, story:$('#pStory').value,
-        pb5k:v.t5, pb10k:v.t10, pbhalf:v.th, pbmar:v.tm, color:$('#pColor').value,
-        ...(!legacy && custom ? { stats } : {}), ...(!legacy && !custom && editing && p.stats_locked ? { stats_reset: true } : {}) };
-      const btn = e.submitter || $('#profForm button[type=submit]'); btn.disabled = true;
+      const body = { tagline:$('#pTag').value, story:$('#pStory').value, pb5k:v.t5, pb10k:v.t10, pbhalf:v.th, pbmar:v.tm,
+        ...(full || !editing ? { name:$('#pName').value, nickname:$('#pNick').value, color:$('#pColor').value } : {}),
+        ...(captain && !legacy && custom ? { stats } : {}), ...(captain && !legacy && !custom && editing && c.stats_locked ? { stats_reset: true } : {}),
+        ...(opt.thisIsMe ? { this_is_me: true } : {}) };
+      const btn = $('#profForm button[type=submit]'); btn.disabled = true;
       try {
-        let id = p.id, recovery = null;
+        let id = c.id;
         if (editing){
-          const r = await apiCall('/api/players/' + id, { method:'PATCH', json: body });
-          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Could not save.'; return; }
+          const x = await apiCall('/api/characters/' + id, { method:'PATCH', json: body });
+          if (!x.ok){ $('#pErr').textContent = x.data.error || 'Could not save.'; return; }
         } else {
-          const r = await apiCall(`/api/clubs/${clubSlug}/players`, { method:'POST', json: body });
-          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Could not join.'; return; }
-          id = r.data.player.id; recovery = r.data.recovery_code; store.set('me.' + clubSlug, { id, token: r.data.device_token });
+          const x = await apiCall(`/api/clubs/${clubSlug}/characters`, { method:'POST', json: body });
+          if (!x.ok){ $('#pErr').textContent = x.data.error || 'Could not add the runner.'; return; }
+          id = x.data.character.id;
         }
         if (cropper){
-          const blob = await cropper.export();
-          const r = await apiCall(`/api/players/${id}/photo`, { method:'PUT', body: blob, headers:{ 'content-type':'image/jpeg', 'x-photo-permission':'yes' } }, 20000);
-          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Profile saved, but the photo upload failed.'; await loadClub(); return; }
+          const x = await apiCall(`/api/characters/${id}/photo`, { method:'PUT', body: await cropper.export(), headers:{ 'content-type':'image/jpeg', 'x-photo-permission':'yes' } }, 20000);
+          if (!x.ok){ $('#pErr').textContent = x.data.error || 'Saved, but the photo upload failed.'; await loadClub(); return; }
         }
         await loadClub();
-        if (recovery) return CLUB_VIEWS.recovery({ code: recovery, welcome: true });
-        openProfileCard(runnerByDb(id), 'Saved!');
-      } catch(err){ $('#pErr').textContent = 'No connection. Try again.'; }
+        openProfileCard(runnerByDb(id), editing ? 'Saved!' : 'Runner added to the roster!');
+      } catch(err){ $('#pErr').textContent = err.message && /photo/.test(err.message) ? err.message : 'No connection. Try again.'; }
       finally { btn.disabled = false; }
     });
   },
   async board(){
     $('#clubTitle').textContent = 'LEADERBOARD';
-    CB().innerHTML = `<div class="lb-tabs"><button class="btn alt" type="button" aria-pressed="true" data-lb="today">TODAY</button><button class="btn alt" type="button" aria-pressed="false" data-lb="all">ALL TIME</button></div>
-      <ol class="board" id="lbList"><li>Loading...</li></ol><div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button></div>`;
-    let data = null;
-    const show = k => { document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === k))); $('#lbList').innerHTML = boardHtml(data ? data[k] : null); };
-    document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => show(b.dataset.lb)));
-    try { const r = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`); data = r.ok ? r.data : null; } catch(e){}
-    show('today');
+    let period = 'today', group = store.get('lbgroup', 'player') === 'character' ? 'character' : 'player';
+    CB().innerHTML = `<div class="lb-tabs"><button class="btn alt" type="button" data-lb="today">TODAY</button><button class="btn alt" type="button" data-lb="all">ALL TIME</button></div>
+      <div class="lb-tabs lb-group"><button class="btn alt" type="button" data-lg="player">BY PLAYER</button><button class="btn alt" type="button" data-lg="character">BY RUNNER</button></div>
+      <ol class="board" id="lbList"><li>Loading...</li></ol><p class="note" id="lbNote"></p><div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button></div>`;
+    const cache = {};
+    const draw = async () => {
+      document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === period)));
+      document.querySelectorAll('[data-lg]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lg === group)));
+      $('#lbNote').textContent = group === 'player' ? 'Best time per player, with the runner they raced as.' : 'Best time per runner, with the player who ran it.';
+      if (!cache[group]){ try { const r = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic&group=${group}`); cache[group] = r.ok ? r.data : null; } catch(e){ cache[group] = null; } }
+      if ($('#lbList')) $('#lbList').innerHTML = boardHtml(cache[group] ? cache[group][period] : null, group);
+    };
+    document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => { period = b.dataset.lb; draw(); }));
+    document.querySelectorAll('[data-lg]').forEach(b => b.addEventListener('click', () => { group = b.dataset.lg; store.set('lbgroup', group); draw(); }));
+    draw();
   },
   report(who){
     $('#clubTitle').textContent = 'REPORT';
-    CB()._back = who.back || null;
-    CB().innerHTML = `<p>Report the ${who.kind === 'story' ? 'bio' : 'photo'} of <b>${esc(who.name)}</b> to the captain and site admin?</p>
+    const thing = who.kind === 'story' ? 'bio' : who.kind === 'avatar' ? 'avatar' : 'photo';
+    CB().innerHTML = `<p>Report the ${thing} of <b>${esc(who.name)}</b> to the captain and site admin?</p>
       <form id="repForm"><label>Reason<select id="repWhy" style="font:inherit;font-size:19px;border:2px solid var(--ink);padding:6px"><option>Photo used without permission</option><option>Offensive or inappropriate</option><option>Spam or fake profile</option><option>Something else</option></select></label>
-      <p class="err" id="repErr"></p><div class="actions"><button class="btn alt" type="button" data-cv="${who.back ? 'back' : 'close'}">CANCEL</button><button class="btn hot" type="submit">SEND REPORT</button></div></form>`;
+      <p class="err" id="repErr"></p><div class="actions"><button class="btn alt" type="button" id="repBack">CANCEL</button><button class="btn hot" type="submit">SEND REPORT</button></div></form>`;
+    $('#repBack').addEventListener('click', () => who.back ? who.back() : closeClub());
     $('#repForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try { const r = await apiCall('/api/report', { method:'POST', json:{ kind: who.kind, player_id: who.id, reason: $('#repWhy').value } });
+      try { const r = await apiCall('/api/report', { method:'POST', json:{ kind: who.kind, character_id: who.character_id, player_id: who.player_id, reason: $('#repWhy').value } });
         CB().innerHTML = r.ok ? '<p class="ok">Thanks, the report was sent to the captain and the site admin.</p><div class="actions"><button class="btn alt" type="button" data-cv="close">CLOSE</button></div>' : `<p class="err">${esc(r.data.error || 'Could not send.')}</p>`; }
       catch(err){ $('#repErr').textContent = 'No connection.'; }
     });
   },
 };
-function boardHtml(rows, meName){
-  if (!rows) return '<li>No connection.</li>';
-  if (!rows.length) return '<li>No times yet. Be the first!</li>';
-  return rows.map((x, i) => `<li class="${meName && x.name === meName ? 'me' : ''}${x.player_id ? ' tap' : ''}" ${x.player_id ? `data-pid="${x.player_id}" role="button" tabindex="0" aria-label="Open the profile of ${esc(x.name)}"` : ''}><span class="pos">${i + 1}</span><span>${esc(x.name)}${x.by_name && x.by_name !== x.name ? ' <small>by ' + esc(x.by_name) + '</small>' : ''}</span><span class="t">${fmt(x.time_s)}</span></li>`).join('');
-}
-async function cropPhoto(file){
-  if (!/^image\//.test(file.type)) throw new Error('Please choose a photo.');
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not read that photo.')); i.src = url; });
-    let sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0;
-    const ratio = 4 / 5;                                   // poster shape
-    if (sw / sh > ratio){ const w = sh * ratio; sx = (sw - w) / 2; sw = w; } else { const h = sw / ratio; sy = (sh - h) * 0.25; sh = h; }   // keep heads in frame
-    const oh = Math.min(600, Math.round(sh)), ow = Math.round(oh * ratio);
-    const c = mk(ow, oh), g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
-    g.drawImage(img, sx, sy, sw, sh, 0, 0, ow, oh);
-    for (const q of [0.85, 0.7, 0.55]){
-      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
-      if (blob && blob.size <= 2 * 1024 * 1024) return blob;
-    }
-    throw new Error('That photo is too big, please pick another one.');
-  } finally { URL.revokeObjectURL(url); }
-}
 $('#clubBtn').addEventListener('click', () => { audioInit(); openClub('home'); });
 $('#lbBtn').addEventListener('click', () => { audioInit(); if (NET.online) openClub('board'); else openClub('home'); });
 $('#clubClose').addEventListener('click', closeClub);
-const openPid = e => { const li = e.target.closest('[data-pid]'); if (!li) return false; openProfileCard(runnerByDb(+li.dataset.pid)); return true; };
-$('#clubBoardWrap').addEventListener('click', openPid);
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-pid]')) openPid(e); });
+// leaderboard rows: tap a player to open the player profile, a runner to open the runner card
+const openRow = e => {
+  const li = e.target.closest('[data-pid],[data-cid]'); if (!li) return false;
+  if (li.dataset.pid) openPlayerProfile(+li.dataset.pid); else openProfileCard(runnerByDb(+li.dataset.cid));
+  return true;
+};
+$('#clubBoardWrap').addEventListener('click', openRow);
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.closest && e.target.closest('[data-pid],[data-cid]')) openRow(e); });
 $('#meBtn').addEventListener('click', () => { audioInit(); if (NET.online && NET.club) openClub('me'); else openClub('home'); });
+$('#playingEdit').addEventListener('click', () => { audioInit(); if (NET.me) openClub('player'); });
 $('#clubModal').addEventListener('click', e => {
   if (e.target.id === 'clubModal') return closeClub();
-  if (openPid(e)) return;
+  if (openRow(e)) return;
   const b = e.target.closest('[data-cv]'); if (!b) { if (e.target.closest('[data-track="invite"]')) trackEvent('result_shared', { path: 'invite' }); return; }
   const v = b.dataset.cv;
   if (v === 'close') return closeClub();
+  if (v === 'go'){ closeClub(); const go = afterName; afterName = null; if (go) go(); else if (G.screen === 'title') goSelect(); return; }
   if (v === 'retry') return loadClub().then(() => openClub('home'));
   if (v === 'copylink') return copyText(clubLink(), $('#cbMsg'));
   if (v === 'copycap') return copyText(clubLink() + '#captain=' + capToken(), $('#cbMsg'));
-  if (v === 'join') return openClub('profile');
-  if (v === 'back') return CB()._back ? openProfileCard(CB()._back) : openClub('home');
   openClub(v);
 });
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#clubModal').hidden) closeClub(); });
-// runner card actions (owner, captain, report)
+// runner info under the carousel: open the runner card
 $('#runnerInfo').addEventListener('click', e => {
   const b = e.target.closest('[data-ra]'); if (!b) return;
   const r = RUNNERS[G.sel]; if (r) openProfileCard(r);
@@ -2200,7 +2404,7 @@ $('#runnerInfo').addEventListener('click', e => {
 $('#posterReport').addEventListener('click', e => {
   e.stopPropagation();
   const who = $('#posterReport')._who; closePoster();
-  if (who) openClub('report', { kind:'photo', id: who.dbId, name: who.name });
+  if (who) openClub('report', { kind:'photo', character_id: who.dbId, name: who.name });
 });
 
 /* ---------- input ---------- */
@@ -2222,7 +2426,11 @@ window.addEventListener('keydown', e => {
 });
 document.addEventListener('gesturestart', e => e.preventDefault());
 
-$('#startBtn').addEventListener('click', () => { audioInit(); sfx('select'); show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
+$('#startBtn').addEventListener('click', () => {
+  audioInit(); sfx('select');
+  if (needsPlayerName()){ afterName = goSelect; openClub('name'); return; }
+  goSelect();
+});
 $('#backBtn').addEventListener('click', () => { legend(); show('title'); });
 $('#goBtn').addEventListener('click', startRace);
 $('#poster').addEventListener('click', closePoster);
@@ -2250,7 +2458,7 @@ $('#waResultBtn').addEventListener('click', async () => {
   // With photo: share a result card image (phones that support sharing files), otherwise the text via WhatsApp.
   try {
     if (lastResult && navigator.canShare){
-      const blob = await resultCardBlob(lastResult.me, lastResult.t, lastResult.pos, lastResult.n);
+      const blob = await resultCardBlob(lastResult.me, lastResult.t, lastResult.pos, lastResult.n, lastResult.who);
       const file = new File([blob], 'wolfpack-run-result.png', { type:'image/png' });
       if (navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], text: lastShare }); return; }
     }
@@ -2299,6 +2507,6 @@ if (document.fonts && document.fonts.load){ document.fonts.load('8px "Press Star
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && G.screen === 'race') requestWake(); });
 
 // test hook (harmless in play)
-window.__wolf = { G, get race(){ return race; }, tapRun, tapJump, startRace, show };
+window.__wolf = { G, get race(){ return race; }, get runners(){ return RUNNERS; }, tapRun, tapJump, startRace, show, TOTAL, LAP };
 })();
 </script>
