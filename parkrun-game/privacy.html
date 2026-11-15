@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wolfpack Run Privacy</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+:root{--ink:#1b1420;--deck:#24212a;--paper:#f6efe1;--muted:#b7aec2;--hivis:#e6f02a;--orange:#f26a1b;color-scheme:dark}
+html,body{margin:0;background:var(--deck);color:var(--paper)}
+body{font-family:"VT323",ui-monospace,monospace;font-size:21px;line-height:1.25;padding-block:28px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1,h2{font-family:"Press Start 2P",ui-monospace,monospace;font-weight:400;margin:0;line-height:1.5}
+h1{font-size:18px;color:var(--hivis)}
+h2{font-size:12px;margin-top:10px}
+p,li{margin:0;max-width:62ch}
+ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+a{color:var(--hivis)}
+.box{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);padding:14px}
+</style>
+<main>
+  <p><a href="/">Back to the game</a></p>
+  <h1>PRIVACY</h1>
+  <p>Wolfpack Run is a small hobby game for running clubs. We want to know roughly how many people play and where they come from, without tracking you.</p>
+
+  <h2>WHAT WE COLLECT</h2>
+  <ul>
+    <li><b>Visits and game events:</b> page views, races started and finished, results shared, clubs created and joined.</li>
+    <li><b>Rough location:</b> country, region and city, worked out by our hosting provider (Cloudflare) from your connection. Never your exact location.</li>
+    <li><b>Where you came from:</b> the website that linked you here (only its name, like whatsapp.com) and campaign tags in the link (utm_source, utm_medium, utm_campaign).</li>
+    <li><b>Device type:</b> mobile or desktop.</li>
+    <li><b>Date and hour</b> of each event.</li>
+  </ul>
+
+  <h2>WHAT WE DO NOT COLLECT</h2>
+  <div class="box">
+    <ul>
+      <li>We never store your IP address.</li>
+      <li>We do not use tracking cookies or tracking storage on your device.</li>
+      <li>We do not sell or share data with advertisers.</li>
+    </ul>
+  </div>
+
+  <h2>HOW WE COUNT UNIQUE VISITORS</h2>
+  <p>To count visitors we combine your IP address and browser type with a random value that changes every day, and turn that into a scrambled code (a hash). The IP address itself is thrown away straight away. Because the random value is deleted every day, the code from today cannot be linked to yesterday or tomorrow, and nobody can turn it back into your IP address.</p>
+
+  <h2>CLUB PROFILES AND PHOTOS</h2>
+  <p>If you join a club you choose what to share: a name, nickname, tagline, personal bests, a short story and a photo. Only upload a photo if you have permission from the person in it. Your device keeps a private key in its own storage so only you (and your club captain) can edit your profile. Anyone can report a photo or story, and captains and the site admin can remove it.</p>
+
+  <h2>RACE RESULTS</h2>
+  <p>Finished races are saved with the runner, time and tap count so your club can have a fair leaderboard.</p>
+
+  <h2>REMOVAL</h2>
+  <p>You can remove your own photo or story at any time from your profile. Ask your club captain to remove your profile, or contact the site owner.</p>
+</main>
+</html>

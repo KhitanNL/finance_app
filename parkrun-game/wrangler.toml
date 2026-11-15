@@ -1,0 +1,17 @@
+# Wolfpack Run on Cloudflare Pages (advanced mode: dist/_worker.js handles the API and pages).
+name = "wolfpack-run"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wolfpack-run"
+database_id = "847dbca8-465d-492d-b670-22bdcb0d8b84"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "wolfpack-run"
+
+# The admin password hash is a secret, never in this file:
+#   local:      put ADMIN_PASSWORD_HASH=... in .dev.vars (git-ignored)
+#   production: see README.md, "Admin password"

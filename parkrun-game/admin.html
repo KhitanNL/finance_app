@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Wolfpack Run Admin</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+:root{--ink:#1b1420;--deck:#24212a;--deck-2:#2c2832;--line:#3b3640;--paper:#f6efe1;--muted:#b7aec2;--hivis:#e6f02a;--orange:#f26a1b;--blue:#3ec6ea;--red:#ff6a5a;
+  --f-display:"Press Start 2P",ui-monospace,monospace;--f-body:"VT323",ui-monospace,monospace;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--deck);color:var(--paper)}
+body{font-family:var(--f-body);font-size:20px;line-height:1.2;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;line-height:1.5}
+h1{font-size:16px;color:var(--hivis)} h2{font-size:12px} h3{font-size:10px;color:var(--muted)}
+button,input,select{font:inherit}
+.btn{font-family:var(--f-display);font-size:10px;letter-spacing:.04em;color:var(--ink);background:var(--hivis);border:3px solid var(--ink);padding:9px 12px;cursor:pointer;box-shadow:0 4px 0 var(--ink)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.alt{background:var(--paper)} .btn.red{background:var(--red)}
+.btn:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+input{background:#fffbe9;color:var(--ink);border:3px solid var(--ink);padding:8px 10px;font-size:20px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--f-display);font-size:10px;background:var(--deck-2);color:var(--paper);border:3px solid var(--ink);padding:9px 12px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--orange)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.card{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);padding:12px;min-width:0}
+.card b{display:block;font-family:var(--f-display);font-size:18px;font-variant-numeric:tabular-nums;margin-top:6px}
+.card small{font-size:17px;color:#5a5262}
+.panel{background:var(--deck-2);border:3px solid var(--ink);padding:12px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 8px;border-bottom:2px solid var(--line);white-space:nowrap}
+th{font-family:var(--f-display);font-weight:400;font-size:9px;color:var(--muted)}
+td.n{text-align:right}
+.chart{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:18px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;border:2px solid var(--ink)}
+.split{display:flex;height:22px;border:3px solid var(--ink)}
+.split span{display:block;height:100%}
+.note{color:var(--muted);font-size:18px;max-width:70ch}
+.login{max-width:420px;margin:12vh auto 0;display:flex;flex-direction:column;gap:12px}
+.err{color:var(--red);min-height:22px}
+.report{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start;background:var(--paper);color:var(--ink);border:3px solid var(--ink);padding:10px}
+.report img{width:96px;height:120px;object-fit:cover;border:2px solid var(--ink)}
+.report .story{background:#efe4cc;border:2px solid var(--ink);padding:6px;white-space:normal}
+.report .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+[hidden]{display:none!important}
+</style>
+
+<main>
+  <section id="loginView" class="login" hidden>
+    <h1>WOLFPACK RUN ADMIN</h1>
+    <form id="loginForm" class="panel" style="display:flex;flex-direction:column;gap:12px">
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button class="btn" type="submit">LOG IN</button>
+      <p class="err" id="loginErr" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section id="dash" hidden>
+    <div class="bar">
+      <h1>WOLFPACK RUN ADMIN</h1>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="overview" aria-selected="true">OVERVIEW</button>
+        <button class="tab" role="tab" data-tab="clubs" aria-selected="false">CLUBS</button>
+        <button class="tab" role="tab" data-tab="moderation" aria-selected="false">MODERATION <span id="repCount"></span></button>
+        <button class="btn alt" id="logout" type="button">LOG OUT</button>
+      </div>
+    </div>
+
+    <div class="bar panel">
+      <form id="range" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label for="from">From</label><input id="from" type="date">
+        <label for="to">to</label><input id="to" type="date">
+        <button class="btn" type="submit">APPLY</button>
+        <button class="btn alt" type="button" data-days="7">7 DAYS</button>
+        <button class="btn alt" type="button" data-days="30">30 DAYS</button>
+        <button class="btn alt" type="button" data-days="90">90 DAYS</button>
+      </form>
+    </div>
+
+    <div id="tab-overview" style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
+      <div class="cards" id="cards"></div>
+      <p class="note">Unique visitors are counted per day: the visitor code changes every day on purpose (privacy), so the 7 and 30 day numbers add up daily visitors.</p>
+      <div class="panel">
+        <div class="bar"><h2>VISITORS PER DAY</h2><div class="legend"><span><i style="background:var(--orange)"></i>Visitors</span><span><i style="background:var(--blue)"></i>Page views</span></div></div>
+        <svg class="chart" id="chart" viewBox="0 0 800 220" role="img" aria-label="Visitors and page views per day"></svg>
+      </div>
+      <div class="grid2">
+        <div class="panel"><h2>TOP COUNTRIES</h2><div class="scroll" id="countries"></div></div>
+        <div class="panel"><h2>TOP CITIES</h2><div class="scroll" id="cities"></div></div>
+        <div class="panel"><h2>TOP REFERRERS</h2><div class="scroll" id="referrers"></div></div>
+        <div class="panel"><h2>CAMPAIGNS (UTM)</h2><div class="scroll" id="campaigns"></div></div>
+        <div class="panel"><h2>DEVICES</h2><div id="devices"></div></div>
+        <div class="panel"><h2>RACES</h2><div class="scroll" id="races"></div></div>
+        <div class="panel"><h2>MOST PICKED RUNNERS</h2><div class="scroll" id="runners"></div></div>
+      </div>
+    </div>
+
+    <div id="tab-clubs" hidden style="margin-top:16px">
+      <div class="panel"><h2>CLUBS</h2><p class="note">Races are finished races in the selected period. A new captain link replaces the old one (use it if a captain lost theirs).</p><div class="scroll" id="clubs"></div><p id="capLink" class="note" aria-live="polite"></p></div>
+    </div>
+
+    <div id="tab-moderation" hidden style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+      <h2>REPORTED PHOTOS AND STORIES</h2>
+      <div id="reports" style="display:flex;flex-direction:column;gap:12px"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const flag = cc => cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) + ' ' : '';
+const fmt = s => { s = Math.round(s || 0); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const day = d => d.toISOString().slice(0, 10);
+const api = (p, o = {}) => fetch(p, { credentials: 'same-origin', ...o, headers: { 'content-type': 'application/json', ...(o.headers || {}) } });
+
+function table(rows, cols) {
+  if (!rows || !rows.length) return '<p class="note">No data yet.</p>';
+  return '<table><thead><tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + cols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+}
+function chart(daily, from, to) {
+  const days = []; for (let d = new Date(from + 'T00:00:00Z'); day(d) <= to; d.setUTCDate(d.getUTCDate() + 1)) days.push(day(d));
+  const by = Object.fromEntries((daily || []).map(r => [r.day, r]));
+  const max = Math.max(1, ...days.map(d => by[d]?.views || 0));
+  const W = 800, H = 190, bw = W / Math.max(1, days.length);
+  let s = '';
+  for (let i = 0; i <= 4; i++){ const y = 10 + (H - 10) * i / 4; s += `<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="#3b3640" stroke-width="1"/>`; }
+  days.forEach((d, i) => {
+    const r = by[d] || {}, x = i * bw;
+    const hv = (H - 10) * (r.views || 0) / max, hu = (H - 10) * (r.visitors || 0) / max;
+    s += `<rect x="${x + bw * .15}" y="${H - hv}" width="${bw * .35}" height="${hv}" fill="#3ec6ea"><title>${d}: ${r.views || 0} page views</title></rect>`;
+    s += `<rect x="${x + bw * .5}" y="${H - hu}" width="${bw * .35}" height="${hu}" fill="#f26a1b"><title>${d}: ${r.visitors || 0} visitors</title></rect>`;
+  });
+  s += `<text x="0" y="214" fill="#b7aec2" font-size="16" font-family="VT323">${days[0] || ''}</text><text x="${W}" y="214" fill="#b7aec2" font-size="16" font-family="VT323" text-anchor="end">${days[days.length - 1] || ''}</text>`;
+  s += `<text x="4" y="24" fill="#b7aec2" font-size="16" font-family="VT323">${max}</text>`;
+  $('#chart').innerHTML = s;
+}
+
+async function load() {
+  const res = await api(`/api/admin/stats?from=${$('#from').value}&to=${$('#to').value}`);
+  if (res.status === 401) return showLogin();
+  const d = await res.json();
+  $('#loginView').hidden = true; $('#dash').hidden = false;
+  const c = d.summary;
+  $('#cards').innerHTML = [['Visitors today', c.today.visitors, c.today.views], ['Visitors 7 days', c.d7.visitors, c.d7.views], ['Visitors 30 days', c.d30.visitors, c.d30.views]]
+    .map(([k, v, pv]) => `<div class="card"><small>${k}</small><b>${v || 0}</b><small>${pv || 0} page views</small></div>`).join('') +
+    `<div class="card"><small>Races started / finished</small><b>${d.races.starts || 0} / ${d.races.finishes || 0}</b><small>in selected period</small></div>`;
+  chart(d.daily, d.from, d.to);
+  $('#countries').innerHTML = table(d.countries, [['COUNTRY', r => flag(r.country) + esc(r.country)], ['VISITORS', r => r.visitors, 'n']]);
+  $('#cities').innerHTML = table(d.cities, [['CITY', r => esc(r.city)], ['COUNTRY', r => flag(r.country) + esc(r.country)], ['VISITORS', r => r.visitors, 'n']]);
+  $('#referrers').innerHTML = table(d.referrers, [['REFERRER', r => esc(r.referrer)], ['VIEWS', r => r.views, 'n']]);
+  $('#campaigns').innerHTML = table(d.campaigns, [['SOURCE', r => esc(r.utm_source || '-')], ['MEDIUM', r => esc(r.utm_medium || '-')], ['CAMPAIGN', r => esc(r.utm_campaign || '-')], ['VIEWS', r => r.views, 'n']]);
+  const dev = Object.fromEntries((d.devices || []).map(r => [r.device, r.visitors])), dt = (dev.mobile || 0) + (dev.desktop || 0) || 1;
+  $('#devices').innerHTML = `<div class="split"><span style="width:${100 * (dev.mobile || 0) / dt}%;background:var(--orange)"></span><span style="width:${100 * (dev.desktop || 0) / dt}%;background:var(--blue)"></span></div>
+    <p class="legend" style="margin-top:8px"><span><i style="background:var(--orange)"></i>Mobile ${dev.mobile || 0}</span><span><i style="background:var(--blue)"></i>Desktop ${dev.desktop || 0}</span></p>`;
+  const r = d.races, replays = r.racers ? (r.starts / r.racers).toFixed(1) : '0';
+  $('#races').innerHTML = table([
+    { k: 'Races started', v: r.starts || 0 }, { k: 'Races finished', v: r.finishes || 0 },
+    { k: 'Finish rate', v: r.starts ? Math.round(100 * r.finishes / r.starts) + '%' : '-' }, { k: 'Replays per racer (per day)', v: replays },
+    { k: 'Results shared', v: r.shared || 0 }, { k: 'Clubs created', v: r.clubs_created || 0 }, { k: 'Players joined', v: r.joins || 0 },
+  ], [['', x => x.k], ['', x => x.v, 'n']]);
+  $('#runners').innerHTML = table(d.runners, [['RUNNER', x => esc(x.runner)], ['RACES', x => x.races, 'n']]);
+  $('#clubs').innerHTML = table(d.clubs, [['CLUB', x => esc(x.name)], ['CODE', x => esc(x.join_code)], ['CAPTAIN', x => esc(x.captain_name || '')],
+    ['EMAIL', x => esc(x.captain_email || '')], ['PLAYERS', x => x.players, 'n'], ['RACES', x => x.races, 'n'],
+    ['', x => `<button class="btn alt" data-cap="${esc(x.slug)}" type="button">NEW CAPTAIN LINK</button>`]]);
+  loadReports();
+}
+async function loadReports() {
+  const res = await api('/api/admin/reports'); if (!res.ok) return;
+  const { reports } = await res.json();
+  $('#repCount').textContent = reports.length ? `(${reports.length})` : '';
+  $('#reports').innerHTML = reports.length ? reports.map(r => `<div class="report">
+      ${r.kind === 'photo' && r.photo ? `<img src="${esc(r.photo)}" alt="Reported photo">` : '<div></div>'}
+      <div><b>${esc(r.kind.toUpperCase())}</b> of <b>${esc(r.nickname || r.name)}</b> in ${esc(r.club)}<br>
+      <span>Reason: ${esc(r.reason || 'none given')} · ${new Date(r.created_at).toLocaleString()}</span>
+      ${r.kind === 'story' ? `<p class="story">${esc(r.story || '(already removed)')}</p>` : ''}
+      <div class="row"><button class="btn red" data-act="remove" data-id="${r.id}" type="button">REMOVE</button>
+      <button class="btn red" data-act="ban" data-id="${r.id}" type="button">BAN PLAYER</button>
+      <button class="btn alt" data-act="dismiss" data-id="${r.id}" type="button">DISMISS</button></div></div></div>`).join('')
+    : '<p class="note">No open reports. Nice.</p>';
+}
+function showLogin() { $('#dash').hidden = true; $('#loginView').hidden = false; $('#pw').focus(); }
+function setDays(n) { const t = new Date(); $('#to').value = day(t); $('#from').value = day(new Date(t.getTime() - (n - 1) * 86400000)); }
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('#loginErr').textContent = '';
+  const res = await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ password: $('#pw').value }) });
+  $('#pw').value = '';
+  if (res.ok) load(); else $('#loginErr').textContent = (await res.json().catch(() => ({}))).error || 'Login failed.';
+});
+$('#logout').addEventListener('click', async () => { await api('/api/admin/logout', { method: 'POST' }); showLogin(); });
+$('#range').addEventListener('submit', e => { e.preventDefault(); load(); });
+document.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { setDays(+b.dataset.days); load(); }));
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  ['overview', 'clubs', 'moderation'].forEach(k => $('#tab-' + k).hidden = k !== t.dataset.tab);
+}));
+document.addEventListener('click', async e => {
+  const a = e.target.closest('[data-act]');
+  if (a){ await api('/api/admin/reports/' + a.dataset.id, { method: 'POST', body: JSON.stringify({ action: a.dataset.act }) }); loadReports(); return; }
+  const c = e.target.closest('[data-cap]');
+  if (c){
+    const res = await api(`/api/admin/clubs/${c.dataset.cap}/captain-link`, { method: 'POST' });
+    const d = await res.json();
+    $('#capLink').innerHTML = res.ok ? `New captain link for ${esc(c.dataset.cap)} (send it privately, it replaces the old one):<br><code style="user-select:all">${esc(location.origin + d.link)}</code>` : esc(d.error);
+  }
+});
+setDays(30);
+load();
+})();
+</script>
+</html>

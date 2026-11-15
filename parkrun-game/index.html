@@ -135,6 +135,43 @@ p{margin:0;max-width:60ch}
 .poster-emoji i{font-style:normal;font-size:22px;color:var(--muted)}
 .poster-close{position:absolute;top:max(12px, env(safe-area-inset-top, 0px));right:max(12px, env(safe-area-inset-right, 0px))}
 #cards .cover[aria-selected="true"]{cursor:zoom-in}
+.clubbar{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.25);border:2px solid var(--deck-line);padding:8px 10px}
+.clubbar span{display:flex;flex-direction:column;min-width:0;flex:1}
+.clubbar b{font-family:var(--f-display);font-weight:400;font-size:10px;line-height:1.5;color:var(--paper);overflow-wrap:anywhere}
+.clubbar small{font-size:17px;color:var(--muted)}
+.clubbar .btn{padding:9px 12px;font-size:10px}
+.club-dot{flex:0 0 18px!important;width:18px;height:18px;border:2px solid var(--ink);background:var(--chrome-2)}
+.club-box{gap:14px}
+.club-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.club-box h3{font-family:var(--f-display);font-weight:400;font-size:10px;margin:14px 0 0}
+.club-box .note{color:#5a5262;font-size:18px}
+.club-box .code{font-family:var(--f-display);font-size:16px;letter-spacing:.2em;background:#efe4cc;border:2px solid var(--ink);padding:6px 10px;display:inline-block}
+.club-box .actions{display:flex;flex-wrap:wrap;gap:10px}
+.club-box .actions .btn{flex:1 1 140px;font-size:10px;padding:11px 10px}
+.club-box form{display:flex;flex-direction:column;gap:10px}
+.club-box label{display:flex;flex-direction:column;gap:4px;font-size:18px}
+.club-box input[type=text],.club-box input[type=email],.club-box textarea,.club-box input:not([type]){font:inherit;font-size:19px;border:2px solid var(--ink);background:#fffbe9;color:var(--ink);padding:6px 8px;width:100%;box-sizing:border-box}
+.club-box textarea{min-height:70px;resize:vertical}
+.club-box input[type=color]{width:56px;height:36px;border:2px solid var(--ink);padding:0;background:none}
+.club-box .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.club-box .check{flex-direction:row;align-items:flex-start;gap:8px}
+.club-box .check input{width:22px;height:22px;flex:0 0 22px;margin-top:2px}
+.club-box .err{color:#b3261e;min-height:20px}
+.club-box .ok{color:#2e7d32}
+.photo-prev{width:96px;height:120px;border:2px solid var(--ink);object-fit:cover;background:#efe4cc}
+.statrow{display:grid;grid-template-columns:110px 1fr 28px;gap:8px;align-items:center;font-size:18px}
+.statrow input{width:100%}
+.lb-tabs{display:flex;gap:8px}
+.lb-tabs .btn{flex:1;font-size:10px;padding:9px}
+.lb-tabs .btn[aria-pressed="true"]{background:var(--hivis)}
+.club-box .board li{background:#efe4cc;border-color:var(--ink);color:var(--ink)}
+.club-box .board .pos{color:var(--chrome-2)}
+.board-h{font-size:11px;margin-top:6px}
+.story{font-size:18px;line-height:1.15;color:#4a4352;grid-column:1 / -1;background:#efe4cc;border:2px solid var(--ink);padding:6px 8px;margin:0}
+.mini-actions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px}
+.mini{font-family:var(--f-display);font-size:8px;padding:6px 7px;border:2px solid var(--ink);background:#fffbe9;color:var(--ink);cursor:pointer}
+.mini.red{background:#ffb4a8}
+.poster-report{position:absolute;bottom:max(12px, env(safe-area-inset-bottom, 0px));right:max(12px, env(safe-area-inset-right, 0px))}
 .help{position:fixed;inset:0;z-index:50;background:rgba(10,8,14,.78);display:grid;place-items:center;
   padding:max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
 .help-box{width:min(520px,100%);max-height:100%;overflow-y:auto;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:0 6px 0 var(--ink);padding:16px;display:flex;flex-direction:column;gap:12px;font-size:19px;line-height:1.15}
@@ -266,6 +303,13 @@ p{margin:0;max-width:60ch}
   <img id="posterImg" src="" alt="">
   <div class="poster-emoji" id="posterEmoji" hidden></div>
   <button class="hud-btn poster-close" id="posterClose" type="button" aria-label="Close poster">✕ CLOSE</button>
+  <button class="hud-btn poster-report" id="posterReport" type="button" hidden>REPORT PHOTO</button>
+</div>
+<div class="help" id="clubModal" hidden role="dialog" aria-modal="true" aria-labelledby="clubTitle">
+  <div class="help-box club-box">
+    <div class="club-head"><h2 id="clubTitle">CLUB</h2><button class="btn alt" id="clubClose" type="button">CLOSE</button></div>
+    <div id="clubBody"></div>
+  </div>
 </div>
 <div id="app" data-screen="title">
   <div id="stage">
@@ -277,6 +321,7 @@ p{margin:0;max-width:60ch}
     <section id="scr-title">
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
+      <div class="clubbar" id="clubBar"><span class="club-dot" id="clubDot"></span><span><b id="clubName">WOLFPACK ZUIDERPARK</b><small id="clubSub">Zuiderpark, Den Haag</small></span><button class="btn alt" id="clubBtn" type="button">CLUB</button></div>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
       <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
@@ -319,10 +364,12 @@ p{margin:0;max-width:60ch}
       <div class="res-time" id="resTime">17:48</div>
       <dl class="res-grid" id="resGrid"></dl>
       <ol class="board" id="board"></ol>
+      <div id="clubBoardWrap" hidden><h2 class="board-h">CLUB LEADERBOARD TODAY</h2><ol class="board" id="clubBoard"></ol><p class="muted" id="clubBoardNote"></p></div>
       <div class="row">
         <button class="btn hot" id="againBtn" type="button">RUN AGAIN</button>
         <button class="btn alt" id="changeBtn" type="button">RUNNERS</button>
         <button class="btn alt" id="copyBtn" type="button">COPY RESULT</button>
+        <button class="btn alt" id="waResultBtn" type="button">WHATSAPP</button>
       </div>
       <p id="copyMsg" aria-live="polite"></p>
       <textarea id="shareText" aria-hidden="true" tabindex="-1"></textarea>
@@ -354,7 +401,7 @@ const store = {
 };
 
 /* ---------- runners ---------- */
-const RUNNERS = [
+const BUILTIN_RUNNERS = [
   { id:'julian', shouts:['ASICS ADDICT!', 'GO JULIAN!'], name:'JULIAN', full:'Julian', photo:'img/julian.jpg', tag:'Asics addict.', known:'Shoe rotation: all Asics',
     perk:'Fresh Asics: every tap pushes harder.', spd:5, st:1, love:2, jmp:3, target:1095, fx:{ inc:1.04 },
     pal:{ h:'#5a3a22', s:'#f0c49c', t:'#1f4fd8', n:'#f6efe1', p:'#1b1420', k:'#2f6fe8' } },
@@ -367,9 +414,9 @@ const RUNNERS = [
   { id:'singho', shouts:['GEL MAN!', 'GO SING!'], name:'SING', full:'Sing', photo:'img/singho.jpg', tag:'Free energy gel collector.', known:'Gels in belt: too many to count',
     perk:'Gel collector: gels last 60% longer, starts with one.', spd:3, st:3, love:2, jmp:2, target:1150, fx:{ gel:1.6, startGel:true }, belt:true, head:'cap',
     pal:{ h:'#1b1420', s:'#e8b88a', t:'#d4f01e', n:'#b8d010', p:'#1b1420', k:'#2a2d3a', G:'#ff4fa3', Y:'#ff9a1a' } },
-  { id:'ronald', shouts:['MR PUMA!', 'GO RONALD!'], name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'Mr Puma.', known:'Kit: Puma head to toe',
-    perk:'Puma pounce: puddles and geese only slow him half as much.', spd:3, st:3, love:2, jmp:4, target:1120, fx:{ soft:0.5 }, head:'capf',
-    pal:{ H:'#ece8de', h:'#6a4a2e', s:'#eab48c', t:'#1b1420', n:'#e8c81a', p:'#1b1420', k:'#f4f4f4' } },
+  { id:'ronald', shouts:['SPECIAL DELIVERY!', 'POST!', 'GO RONALD!', 'RUN, THE GEESE!'], name:'RONALD', full:'Ronald', photo:'img/ronald.jpg', tag:'The flying postman.', known:'Delivers mail and PBs',
+    perk:'Goose alarm: geese chase him like guard dogs, so every goose makes him sprint away instead of slowing him down.', spd:3, st:3, love:2, jmp:4, target:1120, fx:{ postman:true }, head:'capf', belt:true,
+    pal:{ H:'#f26a1b', h:'#6a4a2e', s:'#eab48c', t:'#f26a1b', n:'#1f2a4a', p:'#1f2a4a', k:'#2a2d3a', G:'#1f2a4a', Y:'#f26a1b' } },
   { id:'ivan', shouts:['COACH IVAN!', 'GO IVAN!'], name:'IVAN', full:'Ivan', photo:'img/ivan.jpg', tag:'Personal trainer.', known:'Stopwatch always in hand',
     perk:'PT power: higher top speed when you tap flat out.', spd:4, st:2, love:3, jmp:4, target:1100, fx:{ cap:0.35 }, head:'long',
     pal:{ h:'#8a5530', r:'#6e4224', s:'#eab08a', t:'#26222c', n:'#45404e', p:'#1b1420', k:'#f4f4f4' } },
@@ -389,6 +436,7 @@ const RUNNERS = [
     perk:'Influencer: every fan group he passes films him and gives a small speed kick.', spd:3, st:3, love:1, jmp:4, target:1120, fx:{ fans:true },
     pal:{ h:'#ecc95a', s:'#f0c49c', t:'#2f9a3a', n:'#8fe07a', p:'#1f6a2a', k:'#f4f4f4' } },
 ];
+let RUNNERS = BUILTIN_RUNNERS.slice();
 // Runners without a photo get a cover drawn from their emoji (Draakie: the dragon)
 function emojiCover(ch){
   const c = mk(360, 360), g = c.getContext('2d');
@@ -402,18 +450,20 @@ function emojiCover(ch){
 // emoji runners are shown as text (iPhones do not draw colour emoji on a canvas)
 // Secret runner: Jony (Draakie) is always last in RUNNERS and stays hidden until unlocked
 let secretUnlocked = !!store.get('draakie', false);
-const visibleCount = () => secretUnlocked ? RUNNERS.length : RUNNERS.length - 1;
+const hasSecret = () => RUNNERS.length > 1 && RUNNERS[RUNNERS.length - 1].id === 'draakie';
+const visibleCount = () => hasSecret() && !secretUnlocked ? RUNNERS.length - 1 : RUNNERS.length;
 // Carousel order (runner indices). Once unlocked, Draakie sits right next to Julian, at the far left.
 // Coming soon: teaser covers at the end of the carousel, not playable (shown as -1, -2, -3 in the order)
-RUNNERS.forEach(r => { if (!r.emoji) r.poster = 'img/posters/' + r.id + '.jpg'; });
-const TEASERS = [
+BUILTIN_RUNNERS.forEach(r => { if (!r.emoji) r.poster = 'img/posters/' + r.id + '.jpg'; });
+const BUILTIN_TEASERS = [
   { id:'ren', full:'Ren', tag:'Ekiden runner.', photo:'img/ren.jpg' },
   { id:'kipren', full:'Kipren', tag:'The hill specialist.', photo:'img/kipren.jpg' },
   { id:'sander', full:'Sander', tag:'Trail runner.', photo:'img/sander.jpg' },
 ];
-TEASERS.forEach(t => { t.poster = 'img/posters/' + t.id + '.jpg'; });
+BUILTIN_TEASERS.forEach(t => { t.poster = 'img/posters/' + t.id + '.jpg'; });
+let TEASERS = BUILTIN_TEASERS;
 const flowOrder = () => { const a = []; for (let i = 0; i < visibleCount(); i++) a.push(i);
-  if (secretUnlocked){ a.pop(); a.unshift(RUNNERS.length - 1); }
+  if (secretUnlocked && hasSecret()){ a.pop(); a.unshift(RUNNERS.length - 1); }
   TEASERS.forEach((t, k) => a.push(-(k + 1))); return a; };
 const posOf = i => Math.max(0, flowOrder().indexOf(i));
 let pbs = store.get('pbs', {});
@@ -1010,6 +1060,10 @@ function update(dt){
     if (foot < (o.type === 'goose' ? 10 : 3)){
       o.hit = true;
       if (r.me.fx.immune){ msg(o.type === 'puddle' ? 'TURTLES LOVE WATER!' : 'GEESE DO NOT BOTHER A TURTLE', '#7fe07a'); continue; }
+      if (r.me.fx.postman && o.type === 'goose'){   // the postman flees from the guard geese
+        r.boost.nomio = 2 * boostMult(); r.e = Math.min(capOf(r), r.e + 0.6);
+        msg('GOOSE CHASE! RUN!', '#ffd23f'); sfx('jump'); burst(o.d * PXM, FOOT_ME - 8, '#f4f2ea', 10, 60); continue;
+      }
       const soft = r.me.fx.soft || 1;
       if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
       else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = r.me.fx.align ? 0 : 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
@@ -1236,10 +1290,24 @@ function show(screen){
   for (const id of ['title', 'select', 'race', 'result']) $('#scr-' + id).hidden = (id !== screen);
   resize();
 }
+async function submitResult(r, t){
+  const box = $('#clubBoardWrap'); box.hidden = true;
+  if (!NET.online || !r.me.dbId) return;
+  try {
+    const me = myProfile();
+    const s = await apiCall('/api/results', { method:'POST', json:{ club: clubSlug, runner_id: r.me.dbId, by_player_id: me && me.id, mode:'classic', time_s: Math.round(t), taps: r.taps, max_cad: r.maxCad } });
+    const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`);
+    if (!lb.ok) return;
+    $('#clubBoard').innerHTML = boardHtml(lb.data.today, r.me.name);
+    $('#clubBoardNote').textContent = s.ok ? 'Your time is saved for ' + NET.club.name + '.' : (s.data.error || 'This time was not saved.');
+    box.hidden = false;
+  } catch(e){}
+}
 function startRace(){
   if (G.screen === 'select' && G.teaser >= 0) return;   // teasers are not playable
   audioInit();
   newRace();
+  trackEvent('race_start', { runner: race.me.id, mode: 'classic' });
   show('race');
   AU.playing = true; AU.step = 0; AU.nextT = 0;
   requestWake();
@@ -1274,7 +1342,7 @@ function renderCards(){
     const r = RUNNERS[i];
     el.className = 'cover'; el.setAttribute('role', 'option');
     el.setAttribute('aria-selected', String(i === G.sel)); el.setAttribute('aria-label', r.full);
-    el.innerHTML = r.emoji ? `<div class="emo" aria-hidden="true">${r.emoji}</div>` : `<img src="${r.photo}" alt="" draggable="false">`;
+    el.innerHTML = r.emoji ? `<div class="emo" aria-hidden="true">${esc(r.emoji)}</div>` : `<img src="${esc(r.photo)}" alt="" draggable="false">`;
     wrap.appendChild(el);
   });
   $('#dots').innerHTML = flowOrder().map(() => '<i></i>').join('');
@@ -1285,9 +1353,16 @@ function renderInfo(){
   const pips = n => Array.from({ length:5 }, (_, k) => `<span class="pip${k < n ? ' on' : ''}"></span>`).join('');
   $('#flowName').textContent = r.full.toUpperCase();
   $('#flowTag').textContent = r.tag;
-  $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${r.name}</h3><p class="known">${r.known}</p>
+  const mine = r.dbId && myProfile() && myProfile().id === r.dbId;
+  const acts = !NET.online || !r.dbId ? '' : [mine || NET.captain ? '<button class="mini" type="button" data-ra="edit">' + (mine ? 'EDIT MY PROFILE' : 'EDIT') + '</button>' : '',
+    NET.captain && r.photo && !BUILTIN_RUNNERS.includes(r) ? '<button class="mini red" type="button" data-ra="rmphoto">REMOVE PHOTO</button>' : '',
+    NET.captain && r.story ? '<button class="mini red" type="button" data-ra="rmstory">REMOVE STORY</button>' : '',
+    NET.captain && !BUILTIN_RUNNERS.includes(r) ? '<button class="mini red" type="button" data-ra="rmplayer">REMOVE PLAYER</button>' : '',
+    r.story ? '<button class="mini" type="button" data-ra="report">REPORT STORY</button>' : ''].join('');
+  $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${esc(r.name)}</h3><p class="known">${esc(r.known)}</p>
     <dl class="stats"><dt>FAST TWITCH</dt><dd>${pips(r.spd)}</dd><dt>SLOW TWITCH</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JUMP</dt><dd>${pips(r.jmp)}</dd></dl>
-    <p class="perk">${r.perk}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>`;
+    ${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>
+    ${acts ? '<div class="mini-actions">' + acts + '</div>' : ''}`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
 /* Cover Flow: centre card faces you, neighbours swing away in 3D */
@@ -1309,7 +1384,7 @@ function layoutFlow(){
 /* Secret: on the first runner, press < five times to unlock Jony (Draakie) */
 let secretTaps = 0;
 function prevPress(){
-  if (!secretUnlocked && flowOrder()[Math.round(flowPos)] === 0){
+  if (!secretUnlocked && hasSecret() && flowOrder()[Math.round(flowPos)] === 0){
     secretTaps++;
     if (secretTaps >= 5){ unlockSecret(); return; }
     if (secretTaps >= 3) sfx('beep');
@@ -1377,7 +1452,8 @@ function openPoster(item){
   const who = item < 0 ? TEASERS[-item - 1] : RUNNERS[item];
   const box = $('#poster'), img = $('#posterImg'), emo = $('#posterEmoji');
   if (who.poster){ img.src = who.poster; img.alt = 'Poster of ' + who.full; img.hidden = false; emo.hidden = true; }
-  else { img.hidden = true; emo.hidden = false; emo.innerHTML = `<span>${who.emoji}</span><b>${who.full.toUpperCase()}</b><i>${who.tag}</i>`; }
+  else { img.hidden = true; emo.hidden = false; emo.innerHTML = `<span>${esc(who.emoji)}</span><b>${esc(who.full.toUpperCase())}</b><i>${esc(who.tag)}</i>`; }
+  const rp = $('#posterReport'); rp._who = who; rp.hidden = !(NET.online && who.dbId && who.poster);
   box.hidden = false; sfx('select'); $('#posterClose').focus();
 }
 function closePoster(){ $('#poster').hidden = true; const c = $('#cards'); if (c) c.focus(); }
@@ -1394,7 +1470,7 @@ function showTeaser(k, pos){
 }
 function choose(i, rerender){
   G.teaser = -1; const go = $('#goBtn'); if (go){ go.disabled = false; go.textContent = 'START RACE'; }
-  if (G.sel !== i){ G.sel = i; store.set('sel', i); sfx('select'); }
+  if (G.sel !== i){ G.sel = i; store.set('sel.' + clubSlug, i); sfx('select'); }
   const p = posOf(i);
   document.querySelectorAll('#cards .cover').forEach((c, k) => c.setAttribute('aria-selected', String(k === p)));
   if ($('#runnerInfo')) renderInfo();
@@ -1433,11 +1509,330 @@ function showResults(){
     ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
-  $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${x.name}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
-  lastShare = `Wolfpack Run, Zuiderpark 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\nwolfpackrun.app`;
+  $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${esc(x.name)}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
+  const clubLine = NET.club ? NET.club.name : 'Zuiderpark';
+  lastShare = `Wolfpack Run · ${clubLine} 5K\n${me.full}: ${fmt(myT)} (${fmt(myT / 5)}/km)${isPB ? ' NEW PB!' : ''}\nP${pos} of ${rows.length} · laps ${fmt(r.split)} + ${fmt(lap2)} · ${r.got} boosts · ${r.taps} taps\n${NET.online ? clubLink() : 'wolfpackrun.app'}`;
   $('#copyMsg').textContent = '';
   show('result');
+  trackEvent('race_finish', { runner: me.id, mode: 'classic', time_s: Math.round(myT) });
+  submitResult(r, myT);
 }
+
+/* ---------- clubs + online features (offline-first: without the API the game plays with the built-in runners) ---------- */
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const DEFAULT_CLUB = 'wolfpack-zuiderpark';
+const NET = { online:false, club:null, captain:false, players:[] };
+const urlClub = (location.pathname.match(/^\/c\/([a-z0-9-]+)/) || [])[1] || null;
+let clubSlug = urlClub || store.get('club', DEFAULT_CLUB) || DEFAULT_CLUB;
+(() => {   // captain link: /c/<slug>#captain=<token>; keep the token on this device and drop it from the address bar
+  const m = location.hash.match(/captain=([a-f0-9]{48})/);
+  if (m && urlClub){ store.set('cap.' + urlClub, m[1]); try { history.replaceState(null, '', location.pathname + location.search); } catch(e){} }
+})();
+const canTryApi = /^https?:$/.test(location.protocol) && !/claude/.test(location.hostname);
+const myProfile = () => store.get('me.' + clubSlug, null);
+const capToken = () => store.get('cap.' + clubSlug, null);
+const clubLink = () => location.origin + '/c/' + clubSlug;
+
+async function apiCall(path, opts = {}, ms = 6000){
+  if (!canTryApi) throw new Error('offline');
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  const h = Object.assign({}, opts.headers || {});
+  const me = myProfile(), cap = capToken();
+  if (me && me.token) h['x-device-token'] = me.token;
+  if (cap) h['x-captain-token'] = cap;
+  let body = opts.body;
+  if (opts.json !== undefined){ h['content-type'] = 'application/json'; body = JSON.stringify(opts.json); }
+  try {
+    const res = await fetch(path, { method: opts.method || 'GET', headers: h, body, signal: ctl.signal, credentials: 'omit' });
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) throw new Error('offline');
+    return { ok: res.ok, status: res.status, data: await res.json() };
+  } finally { clearTimeout(timer); }
+}
+function trackEvent(type, extra = {}){
+  if (!canTryApi) return;
+  try {
+    fetch('/api/e', { method:'POST', keepalive:true, credentials:'omit', headers:{ 'content-type':'application/json' },
+      body: JSON.stringify(Object.assign({ type, club: clubSlug }, extra)) }).catch(() => {});
+  } catch(e){}
+}
+
+const fmtLong = s => s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(Math.round(s % 60)).padStart(2, '0') : fmt(s);
+function parseTime(v){
+  v = String(v || '').trim(); if (!v) return null;
+  const p = v.split(':').map(Number); if (p.some(n => !Number.isFinite(n) || n < 0)) return NaN;
+  return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : NaN;
+}
+// Riegel helper (same rule as the server): a strong 10K or marathon for your 5K means more slow twitch.
+function suggestStats(pb5, pb10, pbm){
+  let lean = 0;
+  if (pb5 && pb10){ const r = pb10 / (pb5 * Math.pow(2, 1.06)); if (r < 0.985) lean++; else if (r > 1.03) lean--; }
+  if (pb5 && pbm){ const r = pbm / (pb5 * Math.pow(42.195 / 5, 1.06)); if (r < 0.99) lean++; else if (r > 1.08) lean--; }
+  const slow = Math.max(1, Math.min(5, 3 + lean));
+  return { fast: 6 - slow, slow, love: 4, jump: 4 };
+}
+const KIT = ['#f26a1b', '#2f6fd6', '#c8202e', '#47b84a', '#7a3ea0', '#e6b800', '#0f6b72', '#d0458a'];
+function playerRunner(p){
+  const nick = String(p.nickname || p.name).toUpperCase().slice(0, 12);
+  const known = [p.pb5k && '5K ' + fmt(p.pb5k), p.pb10k && '10K ' + fmt(p.pb10k), p.pbmar && 'Marathon ' + fmtLong(p.pbmar)].filter(Boolean).join(' · ') || 'Club runner';
+  const kit = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : KIT[p.id % KIT.length];
+  return { id:'p' + p.id, dbId:p.id, name:nick, full:p.name, photo:p.photo || '', emoji: p.photo ? undefined : '🏃', poster: p.photo || undefined,
+    tag: p.tagline || 'Club runner.', known, story: p.story || '', perk: 'Club runner: no special perk, just honest running.',
+    spd:p.stats.fast, st:p.stats.slow, love:p.stats.love, jmp:p.stats.jump, target: p.pb5k || 1200, fx:{},
+    shouts:['GO ' + nick + '!', 'KOM OP ' + nick + '!'], pal:{ h:'#2a1a12', s:'#d9a77a', t:kit, n:'#f6efe1', p:'#1b1420', k:'#f4f4f4' } };
+}
+function applyClub(data){
+  NET.club = data.club; NET.captain = !!data.captain; NET.players = data.players || [];
+  const wolf = data.club.slug === DEFAULT_CLUB, list = [];
+  if (wolf){
+    const byLegacy = Object.fromEntries(NET.players.filter(p => p.legacy_id).map(p => [p.legacy_id, p]));
+    for (const b of BUILTIN_RUNNERS){ const p = byLegacy[b.id]; if (p){ b.dbId = p.id; if (b.id !== 'draakie') list.push(b); } }
+    list.push(...NET.players.filter(p => !p.legacy_id).map(playerRunner));
+    const dr = BUILTIN_RUNNERS.find(b => b.id === 'draakie'); if (dr && byLegacy.draakie) list.push(dr);
+  } else list.push(...NET.players.map(playerRunner));
+  if (list.length){
+    RUNNERS = list; TEASERS = wolf ? BUILTIN_TEASERS : [];
+    rebuildRunnerSprites();
+    G.sel = Math.max(0, Math.min(store.get('sel.' + clubSlug, 0), visibleCount() - 1));
+  }
+  renderClubBar(); legend();
+  if (G.screen === 'select'){ renderCards(); choose(G.sel, true); }
+}
+function renderClubBar(){
+  const c = NET.club;
+  $('#clubName').textContent = c ? c.name.toUpperCase() : 'WOLFPACK ZUIDERPARK';
+  $('#clubSub').textContent = c ? (c.course || 'Home course not set') : (canTryApi ? 'Connecting...' : 'Offline: built-in runners');
+  $('#clubDot').style.background = (c && c.color) || '';
+}
+async function loadClub(){
+  try {
+    let r = await apiCall('/api/clubs/' + clubSlug);
+    if (r.status === 404 && clubSlug !== DEFAULT_CLUB){ clubSlug = DEFAULT_CLUB; r = await apiCall('/api/clubs/' + clubSlug); }
+    if (!r.ok) throw new Error('no club');
+    NET.online = true; store.set('club', clubSlug); applyClub(r.data);
+  } catch(e){ NET.online = false; NET.club = null; renderClubBar(); if (canTryApi) $('#clubSub').textContent = 'Offline: built-in runners'; }
+}
+
+/* ----- club menu ----- */
+const CB = () => $('#clubBody');
+function openClub(view, arg){ $('#clubModal').hidden = false; (CLUB_VIEWS[view] || CLUB_VIEWS.home)(arg); }
+function closeClub(){ $('#clubModal').hidden = true; }
+function waLink(text){ return 'https://wa.me/?text=' + encodeURIComponent(text); }
+function inviteText(){ return `Join our running club ${NET.club.name} on Wolfpack Run! 🐺\nTap to join: ${clubLink()}\nOr open wolfpackrun.app, tap CLUB and enter code ${NET.club.join_code}`; }
+async function copyText(t, msgEl){
+  const done = ok => { if (msgEl) msgEl.textContent = ok ? 'Copied.' : 'Copy failed, select the text and copy it.'; };
+  try { await navigator.clipboard.writeText(t); done(true); } catch(e){ done(false); }
+}
+const CLUB_VIEWS = {
+  home(){
+    if (!NET.online || !NET.club){
+      $('#clubTitle').textContent = 'CLUB';
+      CB().innerHTML = `<p>Clubs need an internet connection on <b>wolfpackrun.app</b>. You can still play with the built-in runners.</p>
+        <div class="actions"><button class="btn hot" type="button" data-cv="retry">TRY AGAIN</button></div>`;
+      return;
+    }
+    const c = NET.club, me = myProfile(), cap = capToken();
+    $('#clubTitle').textContent = c.name.toUpperCase();
+    CB().innerHTML = `<p class="note">${esc(c.course || '')}${c.captain ? ' · Captain: ' + esc(c.captain) : ''} · ${NET.players.length} runners</p>
+      <h3>INVITE YOUR CLUB</h3><p class="note">Share the link, or let people enter the join code.</p>
+      <p><span class="code">${esc(c.join_code)}</span></p>
+      <div class="actions"><a class="btn hot" href="${esc(waLink(inviteText()))}" target="_blank" rel="noopener" data-track="invite">WHATSAPP INVITE</a>
+        <button class="btn alt" type="button" data-cv="copylink">COPY LINK</button></div><p class="note" id="cbMsg" aria-live="polite"></p>
+      <h3>YOUR PROFILE</h3>
+      <div class="actions">${me ? '<button class="btn alt" type="button" data-cv="editme">EDIT MY PROFILE</button>' : '<button class="btn hot" type="button" data-cv="join">JOIN THIS CLUB</button>'}</div>
+      <h3>LEADERBOARD</h3><div class="actions"><button class="btn alt" type="button" data-cv="board">SHOW LEADERBOARD</button></div>
+      ${NET.captain ? `<h3>CAPTAIN</h3><p class="note">You are the captain of this club. Open a runner on the runner screen to edit them or remove their photo, story or profile. Keep your captain link private.</p>
+        <div class="actions"><button class="btn alt" type="button" data-cv="copycap">COPY CAPTAIN LINK</button></div>` : ''}
+      <h3>OTHER CLUBS</h3>
+      <form id="codeForm"><label for="joinCode">Join code</label><div class="two"><input id="joinCode" maxlength="6" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase"><button class="btn alt" type="submit">GO</button></div><p class="err" id="codeErr"></p></form>
+      <div class="actions"><button class="btn alt" type="button" data-cv="create">CREATE A NEW CLUB</button>
+        ${clubSlug !== DEFAULT_CLUB ? '<a class="btn alt" href="/c/' + DEFAULT_CLUB + '">WOLFPACK ZUIDERPARK</a>' : ''}</div>
+      <p class="note"><a href="/privacy">How we handle your data</a></p>`;
+    $('#codeForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const code = $('#joinCode').value.trim().toUpperCase();
+      try { const r = await apiCall('/api/join/' + encodeURIComponent(code)); if (r.ok) location.href = '/c/' + r.data.slug; else $('#codeErr').textContent = r.data.error || 'No club with that code.'; }
+      catch(err){ $('#codeErr').textContent = 'No connection. Try again.'; }
+    });
+  },
+  create(){
+    $('#clubTitle').textContent = 'NEW CLUB';
+    CB().innerHTML = `<form id="createForm">
+      <label>Club name<input id="cName" maxlength="40" required placeholder="Wolfpack Westbroek"></label>
+      <label>Home course<input id="cCourse" maxlength="60" placeholder="Westbroekpark, Den Haag"></label>
+      <label>Your name (captain)<input id="cCaptain" maxlength="40" required></label>
+      <label>Email to recover your captain link (optional)<input id="cEmail" type="email" maxlength="120"></label>
+      <label class="check"><span>Club colour</span><input id="cColor" type="color" value="#f26a1b"></label>
+      <p class="note">No passwords: you get a private captain link to manage the club. Keep it safe.</p>
+      <p class="err" id="cErr" aria-live="polite"></p>
+      <div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button><button class="btn hot" type="submit">CREATE CLUB</button></div></form>`;
+    $('#createForm').addEventListener('submit', async e => {
+      e.preventDefault(); $('#cErr').textContent = '';
+      try {
+        const r = await apiCall('/api/clubs', { method:'POST', json:{ name:$('#cName').value, course:$('#cCourse').value, captain:$('#cCaptain').value, email:$('#cEmail').value, color:$('#cColor').value } });
+        if (!r.ok){ $('#cErr').textContent = r.data.error || 'Could not create the club.'; return; }
+        store.set('cap.' + r.data.slug, r.data.captain_token);
+        store.set('me.' + r.data.slug, { id: r.data.player_id, token: r.data.device_token });
+        store.set('club', r.data.slug); store.set('newclub', r.data.slug);
+        location.href = '/c/' + r.data.slug;
+      } catch(err){ $('#cErr').textContent = 'No connection. Try again.'; }
+    });
+  },
+  created(){
+    CLUB_VIEWS.home();
+    CB().insertAdjacentHTML('afterbegin', `<p class="ok"><b>Club created!</b> Invite your runners below, then edit your own profile. Your captain link is saved on this device; copy it somewhere safe too.</p>`);
+  },
+  profile(target){
+    // target: undefined = join, a runner object = edit
+    const editing = !!target, p = editing ? NET.players.find(x => x.id === target.dbId) || {} : {};
+    const asCaptain = editing && NET.captain;
+    $('#clubTitle').textContent = editing ? 'EDIT ' + esc(String(p.nickname || p.name || '').toUpperCase()) : 'JOIN ' + esc(NET.club.name.toUpperCase());
+    const st = p.stats || suggestStats(null, null, null);
+    CB().innerHTML = `<form id="profForm">
+      <div class="two"><label>Name<input id="pName" maxlength="40" required value="${esc(p.name || '')}"></label><label>Nickname<input id="pNick" maxlength="16" value="${esc(p.nickname || '')}"></label></div>
+      <label>Tagline<input id="pTag" maxlength="60" placeholder="Mr. 5K" value="${esc(p.tagline || '')}"></label>
+      <div class="two"><label>5K PB (mm:ss)<input id="pB5" inputmode="numeric" placeholder="18:49" value="${p.pb5k ? fmt(p.pb5k) : ''}"></label><label>10K PB (optional)<input id="pB10" inputmode="numeric" placeholder="39:18" value="${p.pb10k ? fmt(p.pb10k) : ''}"></label></div>
+      <label>Marathon PB (h:mm:ss, optional)<input id="pBM" inputmode="numeric" placeholder="3:45:00" value="${p.pbmar ? fmtLong(p.pbmar) : ''}"></label>
+      <label>Your story (max 280)<textarea id="pStory" maxlength="280">${esc(p.story || '')}</textarea><small class="note" id="pCount"></small></label>
+      <label class="check"><span>Kit colour</span><input id="pColor" type="color" value="${esc(p.color || NET.club.color || '#f26a1b')}"></label>
+      <h3>PHOTO</h3>
+      <div class="two" style="align-items:start"><img class="photo-prev" id="pPrev" alt="" ${p.photo ? 'src="' + esc(p.photo) + '"' : ''}>
+        <label>Choose a photo<input id="pFile" type="file" accept="image/*"><small class="note">Cropped to poster shape and resized on your phone.</small></label></div>
+      <label class="check"><input id="pPerm" type="checkbox"><span>I have permission from the person in this photo to use it</span></label>
+      <h3>STATS</h3><div id="pStats"></div>
+      <p class="err" id="pErr" aria-live="polite"></p>
+      <div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button><button class="btn hot" type="submit">${editing ? 'SAVE' : 'JOIN CLUB'}</button></div>
+      ${editing && myProfile() && myProfile().id === p.id && p.photo ? '<div class="actions"><button class="btn alt" type="button" id="pDelPhoto">REMOVE MY PHOTO</button><button class="btn alt" type="button" id="pDelStory">REMOVE MY STORY</button></div>' : ''}
+    </form>`;
+    const count = () => { $('#pCount').textContent = (280 - $('#pStory').value.length) + ' characters left'; };
+    $('#pStory').addEventListener('input', count); count();
+    const stats = { ...st };
+    const drawStats = () => {
+      if (asCaptain){
+        const tot = stats.fast + stats.slow + stats.love + stats.jump, okF = stats.fast + stats.slow === 6;
+        $('#pStats').innerHTML = ['fast', 'slow', 'love', 'jump'].map(k => `<div class="statrow"><span>${{ fast:'FAST TWITCH', slow:'SLOW TWITCH', love:'LOVE', jump:'JUMP' }[k]}</span><input type="range" min="1" max="5" value="${stats[k]}" data-stat="${k}"><b>${stats[k]}</b></div>`).join('') +
+          `<p class="${okF && tot === 14 ? 'ok' : 'err'}">FAST + SLOW = ${stats.fast + stats.slow} (must be 6) · total ${tot} of 14</p>`;
+        $('#pStats').querySelectorAll('input').forEach(i => i.addEventListener('input', () => { stats[i.dataset.stat] = +i.value; drawStats(); }));
+      } else {
+        const s = suggestStats(parseTime($('#pB5').value) || null, parseTime($('#pB10').value) || null, parseTime($('#pBM').value) || null);
+        $('#pStats').innerHTML = `<p class="note">Suggested from your PBs: FAST ${s.fast} · SLOW ${s.slow} · LOVE ${s.love} · JUMP ${s.jump}. Your captain can fine-tune them (14 points in total).</p>`;
+      }
+    };
+    ['#pB5', '#pB10', '#pBM'].forEach(id => $(id).addEventListener('input', drawStats)); drawStats();
+    let photoBlob = null;
+    $('#pFile').addEventListener('change', async () => {
+      $('#pErr').textContent = '';
+      const f = $('#pFile').files[0]; if (!f) return;
+      try { photoBlob = await cropPhoto(f); $('#pPrev').src = URL.createObjectURL(photoBlob); }
+      catch(err){ photoBlob = null; $('#pErr').textContent = err.message || 'Could not read that photo.'; }
+    });
+    const del = (id, what) => { const b = $(id); if (b) b.addEventListener('click', async () => {
+      try { await apiCall(`/api/players/${p.id}/${what}`, { method:'DELETE' }); await loadClub(); closeClub(); } catch(e){ $('#pErr').textContent = 'No connection.'; } }); };
+    del('#pDelPhoto', 'photo'); del('#pDelStory', 'story');
+    $('#profForm').addEventListener('submit', async e => {
+      e.preventDefault(); $('#pErr').textContent = '';
+      const t5 = parseTime($('#pB5').value), t10 = parseTime($('#pB10').value), tm = parseTime($('#pBM').value);
+      if ([t5, t10, tm].some(Number.isNaN)) { $('#pErr').textContent = 'Write times like 18:49 or 3:45:00.'; return; }
+      if (photoBlob && !$('#pPerm').checked){ $('#pErr').textContent = 'Please tick that you have permission to use this photo.'; return; }
+      if (asCaptain && (stats.fast + stats.slow !== 6 || stats.fast + stats.slow + stats.love + stats.jump !== 14)){ $('#pErr').textContent = 'Stats must add up: FAST + SLOW = 6 and 14 in total.'; return; }
+      const body = { name:$('#pName').value, nickname:$('#pNick').value, tagline:$('#pTag').value, story:$('#pStory').value,
+        pb5k:t5, pb10k:t10, pbmar:tm, color:$('#pColor').value, ...(asCaptain ? { stats } : {}) };
+      try {
+        let id = p.id;
+        if (editing){
+          const r = await apiCall('/api/players/' + id, { method:'PATCH', json: body });
+          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Could not save.'; return; }
+        } else {
+          const r = await apiCall(`/api/clubs/${clubSlug}/players`, { method:'POST', json: body });
+          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Could not join.'; return; }
+          id = r.data.player.id; store.set('me.' + clubSlug, { id, token: r.data.device_token });
+        }
+        if (photoBlob){
+          const r = await apiCall(`/api/players/${id}/photo`, { method:'PUT', body: photoBlob, headers:{ 'content-type':'image/jpeg', 'x-photo-permission':'yes' } }, 20000);
+          if (!r.ok){ $('#pErr').textContent = r.data.error || 'Profile saved, but the photo upload failed.'; await loadClub(); return; }
+        }
+        await loadClub();
+        CB().innerHTML = `<p class="ok"><b>${editing ? 'Saved!' : 'Welcome to ' + esc(NET.club.name) + '!'}</b> Your runner is in the carousel now.</p><div class="actions"><button class="btn hot" type="button" data-cv="close">LET'S RUN</button></div>`;
+      } catch(err){ $('#pErr').textContent = 'No connection. Try again.'; }
+    });
+  },
+  async board(){
+    $('#clubTitle').textContent = 'LEADERBOARD';
+    CB().innerHTML = `<div class="lb-tabs"><button class="btn alt" type="button" aria-pressed="true" data-lb="today">TODAY</button><button class="btn alt" type="button" aria-pressed="false" data-lb="all">ALL TIME</button></div>
+      <ol class="board" id="lbList"><li>Loading...</li></ol><div class="actions"><button class="btn alt" type="button" data-cv="home">BACK</button></div>`;
+    let data = null;
+    const show = k => { document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === k))); $('#lbList').innerHTML = boardHtml(data ? data[k] : null); };
+    document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => show(b.dataset.lb)));
+    try { const r = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`); data = r.ok ? r.data : null; } catch(e){}
+    show('today');
+  },
+  report(who){
+    $('#clubTitle').textContent = 'REPORT';
+    CB().innerHTML = `<p>Report the ${who.kind} of <b>${esc(who.name)}</b> to the captain and site admin?</p>
+      <form id="repForm"><label>Reason<select id="repWhy" style="font:inherit;font-size:19px;border:2px solid var(--ink);padding:6px"><option>Photo used without permission</option><option>Offensive or inappropriate</option><option>Spam or fake profile</option><option>Something else</option></select></label>
+      <p class="err" id="repErr"></p><div class="actions"><button class="btn alt" type="button" data-cv="close">CANCEL</button><button class="btn hot" type="submit">SEND REPORT</button></div></form>`;
+    $('#repForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try { const r = await apiCall('/api/report', { method:'POST', json:{ kind: who.kind, player_id: who.id, reason: $('#repWhy').value } });
+        CB().innerHTML = r.ok ? '<p class="ok">Thanks, the report was sent.</p><div class="actions"><button class="btn alt" type="button" data-cv="close">CLOSE</button></div>' : `<p class="err">${esc(r.data.error || 'Could not send.')}</p>`; }
+      catch(err){ $('#repErr').textContent = 'No connection.'; }
+    });
+  },
+};
+function boardHtml(rows, meName){
+  if (!rows) return '<li>No connection.</li>';
+  if (!rows.length) return '<li>No times yet. Be the first!</li>';
+  return rows.map((x, i) => `<li class="${meName && x.name === meName ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${esc(x.name)}${x.by_name && x.by_name !== x.name ? ' <small>by ' + esc(x.by_name) + '</small>' : ''}</span><span class="t">${fmt(x.time_s)}</span></li>`).join('');
+}
+async function cropPhoto(file){
+  if (!/^image\//.test(file.type)) throw new Error('Please choose a photo.');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Could not read that photo.')); i.src = url; });
+    let sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0;
+    const ratio = 4 / 5;                                   // poster shape
+    if (sw / sh > ratio){ const w = sh * ratio; sx = (sw - w) / 2; sw = w; } else { const h = sw / ratio; sy = (sh - h) * 0.25; sh = h; }   // keep heads in frame
+    const oh = Math.min(600, Math.round(sh)), ow = Math.round(oh * ratio);
+    const c = mk(ow, oh), g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+    g.drawImage(img, sx, sy, sw, sh, 0, 0, ow, oh);
+    for (const q of [0.85, 0.7, 0.55]){
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', q));
+      if (blob && blob.size <= 2 * 1024 * 1024) return blob;
+    }
+    throw new Error('That photo is too big, please pick another one.');
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#clubBtn').addEventListener('click', () => { audioInit(); openClub('home'); });
+$('#clubClose').addEventListener('click', closeClub);
+$('#clubModal').addEventListener('click', e => {
+  if (e.target.id === 'clubModal') return closeClub();
+  const b = e.target.closest('[data-cv]'); if (!b) { if (e.target.closest('[data-track="invite"]')) trackEvent('result_shared', { path: 'invite' }); return; }
+  const v = b.dataset.cv;
+  if (v === 'close') return closeClub();
+  if (v === 'retry') return loadClub().then(() => openClub('home'));
+  if (v === 'copylink') return copyText(clubLink(), $('#cbMsg'));
+  if (v === 'copycap') return copyText(clubLink() + '#captain=' + capToken(), $('#cbMsg'));
+  if (v === 'join') return openClub('profile');
+  if (v === 'editme'){ const me = myProfile(); const r = RUNNERS.find(x => x.dbId === me.id) || { dbId: me.id }; return openClub('profile', r); }
+  openClub(v);
+});
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#clubModal').hidden) closeClub(); });
+// runner card actions (owner, captain, report)
+$('#runnerInfo').addEventListener('click', async e => {
+  const b = e.target.closest('[data-ra]'); if (!b) return;
+  const r = RUNNERS[G.sel]; if (!r || !r.dbId) return;
+  const a = b.dataset.ra;
+  if (a === 'edit') return openClub('profile', r);
+  if (a === 'report') return openClub('report', { kind:'story', id:r.dbId, name:r.name });
+  const url = a === 'rmphoto' ? `/api/players/${r.dbId}/photo` : a === 'rmstory' ? `/api/players/${r.dbId}/story` : `/api/players/${r.dbId}`;
+  if (b.dataset.armed !== '1'){ b.dataset.armed = '1'; b.textContent = 'TAP AGAIN TO CONFIRM'; return; }
+  try { await apiCall(url, { method:'DELETE' }); await loadClub(); } catch(err){}
+});
+$('#posterReport').addEventListener('click', e => {
+  e.stopPropagation();
+  const who = $('#posterReport')._who; closePoster();
+  if (who) openClub('report', { kind:'photo', id: who.dbId, name: who.name });
+});
 
 /* ---------- input ---------- */
 function bindPad(el, fn){
@@ -1479,6 +1874,11 @@ $('#copyBtn').addEventListener('click', () => {
     ta.style.left = '-9999px'; done(ok);
   };
   try { navigator.clipboard.writeText(lastShare).then(() => done(true), fallback); } catch(e){ fallback(); }
+  trackEvent('result_shared', { runner: race && race.me.id, path: 'copy' });
+});
+$('#waResultBtn').addEventListener('click', () => {
+  trackEvent('result_shared', { runner: race && race.me.id, path: 'whatsapp' });
+  const a = document.createElement('a'); a.href = 'https://wa.me/?text=' + encodeURIComponent(lastShare); a.target = '_blank'; a.rel = 'noopener'; a.click();
 });
 
 /* ---------- sizing + loop ---------- */
@@ -1505,6 +1905,10 @@ function frame(now){
 buildStatic();
 rebuildRunnerSprites();
 legend();
+renderClubBar();
+loadClub().then(() => { if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); } });
+(() => { const q = new URLSearchParams(location.search);
+  trackEvent('page_view', { path: location.pathname, referrer: document.referrer, utm_source: q.get('utm_source'), utm_medium: q.get('utm_medium'), utm_campaign: q.get('utm_campaign') }); })();
 setMuteLabel();
 resize();
 requestAnimationFrame(frame);
