@@ -135,6 +135,9 @@ p{margin:0;max-width:60ch}
 .poster-emoji i{font-style:normal;font-size:22px;color:var(--muted)}
 .poster-close{position:absolute;top:max(12px, env(safe-area-inset-top, 0px));right:max(12px, env(safe-area-inset-right, 0px))}
 #cards .cover[aria-selected="true"]{cursor:zoom-in}
+.today{display:flex;flex-direction:column;gap:8px;background:rgba(0,0,0,.28);border:2px solid var(--hivis);padding:10px}
+.today-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.today-head h2{font-size:11px;color:var(--hivis)}
 .clubbar{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.25);border:2px solid var(--deck-line);padding:8px 10px}
 .clubbar span{display:flex;flex-direction:column;min-width:0;flex:1}
 .clubbar b{font-family:var(--f-display);font-weight:400;font-size:10px;line-height:1.5;color:var(--paper);overflow-wrap:anywhere}
@@ -324,9 +327,16 @@ p{margin:0;max-width:60ch}
       <div class="clubbar" id="clubBar"><span class="club-dot" id="clubDot"></span><span><b id="clubName">WOLFPACK ZUIDERPARK</b><small id="clubSub">Zuiderpark, Den Haag</small></span><button class="btn alt" id="lbBtn" type="button">RANKS</button><button class="btn alt" id="clubBtn" type="button">CLUB</button></div>
       <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
       <p class="muted" id="titleBest"></p>
-      <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
-      <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
-      <ul class="legend" id="legend"></ul>
+      <div class="today" id="todayBox" hidden>
+        <div class="today-head"><h2 id="todayTitle">TODAY'S LEADERBOARD</h2><button class="mini" id="todayClose" type="button" aria-label="Close leaderboard and show how to play">✕</button></div>
+        <ol class="board" id="todayList"></ol>
+        <p class="muted">Tap anywhere to see how to play.</p>
+      </div>
+      <div id="howTo" style="display:flex;flex-direction:column;gap:14px">
+        <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
+        <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
+        <ul class="legend" id="legend"></ul>
+      </div>
     </section>
 
     <section id="scr-select" hidden>
@@ -1632,6 +1642,25 @@ async function loadClub(){
   } catch(e){ NET.online = false; NET.club = null; renderClubBar(); if (canTryApi) $('#clubSub').textContent = 'Offline: built-in runners'; }
 }
 
+/* ----- today's leaderboard on the start screen (tap away for how to play) ----- */
+async function loadToday(){
+  if (!NET.online || !NET.club) return;
+  try {
+    const r = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`);
+    if (!r.ok) return;
+    $('#todayTitle').textContent = "TODAY'S LEADERBOARD";
+    $('#todayList').innerHTML = boardHtml((r.data.today || []).slice(0, 5));
+    if (G.screen === 'title' && !G.todaySeen){ $('#todayBox').hidden = false; $('#howTo').hidden = true; }
+  } catch(e){}
+}
+function hideToday(){ G.todaySeen = true; $('#todayBox').hidden = true; $('#howTo').hidden = false; }
+$('#todayClose').addEventListener('click', hideToday);
+document.addEventListener('pointerdown', e => {
+  if (G.screen !== 'title' || $('#todayBox').hidden) return;
+  if (e.target.closest('#todayBox') || e.target.closest('button') || e.target.closest('.help')) return;
+  hideToday();
+});
+
 /* ----- club menu ----- */
 const CB = () => $('#clubBody');
 function openClub(view, arg){ $('#clubModal').hidden = false; (CLUB_VIEWS[view] || CLUB_VIEWS.home)(arg); }
@@ -1926,7 +1955,7 @@ buildStatic();
 rebuildRunnerSprites();
 legend();
 renderClubBar();
-loadClub().then(() => { if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); } });
+loadClub().then(() => { loadToday(); if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); } });
 (() => { const q = new URLSearchParams(location.search);
   trackEvent('page_view', { path: location.pathname, referrer: document.referrer, utm_source: q.get('utm_source'), utm_medium: q.get('utm_medium'), utm_campaign: q.get('utm_campaign') }); })();
 setMuteLabel();
