@@ -12,6 +12,8 @@ const JOINS_PER_VISITOR_PER_DAY = 20;
 const UPLOADS_PER_VISITOR_PER_DAY = 30;
 const REPORTS_PER_VISITOR_PER_DAY = 20;
 const RESULTS_PER_VISITOR_PER_DAY = 300;
+const RECOVER_TRIES_PER_VISITOR_PER_DAY = 10;
+const POINTS = { race: 10, pb: 20, streak: 5 };   // per finished race, new personal best, raced the day before too
 const SESSION_HOURS = 12;
 const TS = 15;                    // race seconds per real second (must match the game)
 const EVENT_TYPES = new Set(['page_view', 'race_start', 'race_finish', 'result_shared', 'club_created', 'club_joined']);
@@ -87,11 +89,11 @@ function validStats(s) {
 }
 
 /* ---------- clubs + players ---------- */
-const PUBLIC_PLAYER = 'id, legacy_id, name, nickname, tagline, pb5k, pb10k, pbmar, photo_key, story, fast, slow, love, jump, color';
+const PUBLIC_PLAYER = 'id, legacy_id, name, nickname, tagline, pb5k, pb10k, pbhalf, pbmar, photo_key, story, fast, slow, love, jump, stats_locked, color';
 function playerOut(p) {
   const photo = !p.photo_key ? null : p.photo_key.startsWith('static:') ? '/' + p.photo_key.slice(7) : '/img/u/' + p.photo_key.slice(2);
   return { id: p.id, legacy_id: p.legacy_id, name: p.name, nickname: p.nickname, tagline: p.tagline,
-    pb5k: p.pb5k, pb10k: p.pb10k, pbmar: p.pbmar, photo, story: p.story,
+    pb5k: p.pb5k, pb10k: p.pb10k, pbhalf: p.pbhalf, pbmar: p.pbmar, photo, story: p.story, stats_locked: !!p.stats_locked,
     stats: { fast: p.fast, slow: p.slow, love: p.love, jump: p.jump }, color: p.color };
 }
 async function clubBySlug(env, slug) {
@@ -103,7 +105,10 @@ async function isCaptain(req, env, club) {
 }
 async function ownsPlayer(req, env, p) {
   const t = req.headers.get('x-device-token');
-  return !!(t && p.device_token_hash && await sha256(t) === p.device_token_hash);
+  if (!t) return false;
+  const h = await sha256(t);
+  if (p.device_token_hash && h === p.device_token_hash) return true;
+  return !!await env.DB.prepare('SELECT 1 FROM player_devices WHERE token_hash = ? AND player_id = ?').bind(h, p.id).first();
 }
 async function deviceBanned(req, env) {
   const t = req.headers.get('x-device-token');
@@ -115,18 +120,31 @@ function slugify(s) {
 }
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function joinCode() { const b = crypto.getRandomValues(new Uint8Array(6)); return [...b].map(x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
-function readProfile(body) {
+function readProfile(body, prev = {}) {
   const name = clean(body.name, 40);
   if (!name) return { error: 'Please give a name.' };
-  const pb = k => body[k] == null || body[k] === '' ? null : int(body[k], 600, 30000);
+  const pb = (k, lo, hi) => body[k] == null || body[k] === '' ? null : int(body[k], lo, hi);
+  // Taglines are max 30 characters; an older, longer one is kept as long as it is not changed.
+  const tagline = prev.tagline && body.tagline === prev.tagline ? prev.tagline : clean(body.tagline, 30);
   const p = {
     name, nickname: clean(body.nickname, 16).toUpperCase() || name.toUpperCase().slice(0, 16),
-    tagline: clean(body.tagline, 60), story: clean(body.story, 280),
-    pb5k: pb('pb5k'), pb10k: pb('pb10k'), pbmar: pb('pbmar'),
+    tagline, story: clean(body.story, 280),
+    pb5k: pb('pb5k', 720, 3600), pb10k: pb('pb10k', 1500, 7200), pbhalf: pb('pbhalf', 3300, 14400), pbmar: pb('pbmar', 7200, 30000),
     color: /^#[0-9a-f]{6}$/i.test(body.color || '') ? body.color : null,
   };
   if (/parkrun/i.test(p.name + p.nickname + p.tagline + p.story)) return { error: 'Please leave out the word parkrun (it is a trademark).' };
+  for (const [k, label] of [['pb5k', '5K'], ['pb10k', '10K'], ['pbhalf', 'half marathon'], ['pbmar', 'marathon']])
+    if (body[k] != null && body[k] !== '' && p[k] === null) return { error: `That ${label} time does not look right.` };
+  if (!p.pb5k && !prev.legacy_id) return { error: 'Please add your 5K PB.' };
   return p;
+}
+// Recovery code: 8 characters, shown once, only its hash is stored (per club).
+function recoveryCode() { const b = crypto.getRandomValues(new Uint8Array(8)); return [...b].map(x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
+const recoveryHash = (clubId, code) => sha256(clubId + ':' + String(code).toUpperCase().replace(/[^A-Z0-9]/g, ''));
+async function newRecovery(env, p) {
+  const code = recoveryCode();
+  await env.DB.prepare('UPDATE players SET recovery_hash = ? WHERE id = ?').bind(await recoveryHash(p.club_id, code), p.id).run();
+  return code.slice(0, 4) + '-' + code.slice(4);
 }
 
 /* ---------- admin session ---------- */
@@ -190,7 +208,8 @@ async function createClub(req, env) {
   const pr = await env.DB.prepare(`INSERT INTO players (club_id, name, nickname, tagline, fast, slow, love, jump, color, device_token_hash, created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(clubId, captain, captain.toUpperCase().slice(0, 16), 'Club captain.', st.fast, st.slow, st.love, st.jump, color, await sha256(deviceToken), now).run();
   await track(req, env, 'club_created', { club: slug });
-  return json({ slug, join_code: code, captain_token: captainToken, device_token: deviceToken, player_id: pr.meta.last_row_id }, 201);
+  const recovery = await newRecovery(env, { id: pr.meta.last_row_id, club_id: clubId });
+  return json({ slug, join_code: code, captain_token: captainToken, device_token: deviceToken, player_id: pr.meta.last_row_id, recovery_code: recovery }, 201);
 }
 
 async function joinClub(req, env, slug) {
@@ -203,12 +222,16 @@ async function joinClub(req, env, slug) {
   const v = await visitorHash(req, env);
   if (!await bump(env, `join:${v}:${utcDay()}`, JOINS_PER_VISITOR_PER_DAY)) return bad('Too many profiles today. Try again tomorrow.', 429);
   const st = suggestStats(p.pb5k, p.pb10k, p.pbmar), deviceToken = randomHex(24);
-  const r = await env.DB.prepare(`INSERT INTO players (club_id, name, nickname, tagline, pb5k, pb10k, pbmar, story, fast, slow, love, jump, color, device_token_hash, created_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(club.id, p.name, p.nickname, p.tagline, p.pb5k, p.pb10k, p.pbmar, p.story,
-    st.fast, st.slow, st.love, st.jump, p.color || club.color, await sha256(deviceToken), Date.now()).run();
+  const own = b.stats ? validStats(b.stats) : null;
+  if (b.stats && !own) return bad('Stats must be 1 to 5 each, FAST + SLOW = 6 and 14 points in total.');
+  const s = own || st;
+  const r = await env.DB.prepare(`INSERT INTO players (club_id, name, nickname, tagline, pb5k, pb10k, pbhalf, pbmar, story, fast, slow, love, jump, stats_locked, color, device_token_hash, created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(club.id, p.name, p.nickname, p.tagline, p.pb5k, p.pb10k, p.pbhalf, p.pbmar, p.story,
+    s.fast, s.slow, s.love, s.jump, own ? 1 : 0, p.color || club.color, await sha256(deviceToken), Date.now()).run();
   await track(req, env, 'club_joined', { club: club.slug });
+  const recovery = await newRecovery(env, { id: r.meta.last_row_id, club_id: club.id });
   const row = await env.DB.prepare(`SELECT ${PUBLIC_PLAYER} FROM players WHERE id = ?`).bind(r.meta.last_row_id).first();
-  return json({ player: playerOut(row), device_token: deviceToken }, 201);
+  return json({ player: playerOut(row), device_token: deviceToken, recovery_code: recovery }, 201);
 }
 
 async function loadPlayer(env, id) {
@@ -221,16 +244,20 @@ async function editPlayer(req, env, id) {
   const captain = await isCaptain(req, env, p), owner = await ownsPlayer(req, env, p);
   if (!captain && !owner) return bad('Only this player or the captain can edit this profile.', 403);
   let b; try { b = await req.json(); } catch { return bad('bad json'); }
-  const q = readProfile({ ...playerOut(p), ...b });
+  const q = readProfile({ ...playerOut(p), ...b }, p);
   if (q.error) return bad(q.error);
   let st = { fast: p.fast, slow: p.slow, love: p.love, jump: p.jump }, locked = p.stats_locked;
-  if (captain && b.stats) {
-    const s = validStats(b.stats);
-    if (!s) return bad('Stats must be 1 to 5 each, FAST + SLOW = 6 and 14 points in total.');
-    st = s; locked = 1;
-  } else if (!locked) st = suggestStats(q.pb5k, q.pb10k, q.pbmar);
-  await env.DB.prepare(`UPDATE players SET name=?, nickname=?, tagline=?, pb5k=?, pb10k=?, pbmar=?, story=?, color=?,
-      fast=?, slow=?, love=?, jump=?, stats_locked=? WHERE id=?`).bind(q.name, q.nickname, q.tagline, q.pb5k, q.pb10k, q.pbmar, q.story,
+  // The original Wolfpack runners keep their hand-tuned stats (they drive the classic game).
+  if (!p.legacy_id) {
+    if (b.stats) {
+      const s = validStats(b.stats);
+      if (!s) return bad('Stats must be 1 to 5 each, FAST + SLOW = 6 and 14 points in total.');
+      st = s; locked = 1;
+    } else if (b.stats_reset) locked = 0;
+    if (!locked) st = suggestStats(q.pb5k, q.pb10k, q.pbmar);
+  }
+  await env.DB.prepare(`UPDATE players SET name=?, nickname=?, tagline=?, pb5k=?, pb10k=?, pbhalf=?, pbmar=?, story=?, color=?,
+      fast=?, slow=?, love=?, jump=?, stats_locked=? WHERE id=?`).bind(q.name, q.nickname, q.tagline, q.pb5k, q.pb10k, q.pbhalf, q.pbmar, q.story,
       q.color || p.color, st.fast, st.slow, st.love, st.jump, locked, p.id).run();
   const row = await env.DB.prepare(`SELECT ${PUBLIC_PLAYER} FROM players WHERE id = ?`).bind(p.id).first();
   return json({ player: playerOut(row) });
@@ -259,11 +286,100 @@ async function uploadPhoto(req, env, id) {
   if (buf.length < 100 || buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) return bad('Please upload a JPEG photo.');
   const v = await visitorHash(req, env);
   if (!await bump(env, `upload:${v}:${utcDay()}`, UPLOADS_PER_VISITOR_PER_DAY)) return bad('Too many uploads today.', 429);
+  const jpg = stripJpegMeta(buf);
+  if (!jpg) return bad('Please upload a JPEG photo.');
   const key = 'u/' + randomHex(16) + '.jpg';
-  await env.BUCKET.put(key, buf, { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' } });
+  await env.BUCKET.put(key, jpg, { httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' } });
   if (p.photo_key && p.photo_key.startsWith('u/')) await env.BUCKET.delete(p.photo_key);
   await env.DB.prepare('UPDATE players SET photo_key = ? WHERE id = ?').bind(key, p.id).run();
   return json({ photo: '/img/u/' + key.slice(2) });
+}
+
+// Removes EXIF/XMP (APP1..APP15) and comment segments, so no location or camera data is kept.
+// The browser already re-encodes the photo; this is the server-side safety net.
+function stripJpegMeta(buf) {
+  const out = [buf.subarray(0, 2)];
+  let i = 2;
+  while (i + 4 <= buf.length) {
+    if (buf[i] !== 0xff) return null;
+    const m = buf[i + 1];
+    if (m === 0xda) { out.push(buf.subarray(i)); break; }             // start of scan: the rest is image data
+    if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { out.push(buf.subarray(i, i + 2)); i += 2; continue; }
+    const len = (buf[i + 2] << 8) | buf[i + 3];
+    if (len < 2 || i + 2 + len > buf.length) return null;
+    const meta = (m >= 0xe1 && m <= 0xef) || m === 0xfe;
+    if (!meta) out.push(buf.subarray(i, i + 2 + len));
+    i += 2 + len;
+  }
+  const n = out.reduce((a, b) => a + b.length, 0), res = new Uint8Array(n);
+  let o = 0; for (const b of out) { res.set(b, o); o += b.length; }
+  return res;
+}
+
+async function getPlayer(req, env, id) {
+  const p = await loadPlayer(env, id);
+  if (!p || p.banned) return bad('Player not found', 404);
+  const captain = await isCaptain(req, env, p), owner = await ownsPlayer(req, env, p);
+  const q = (sql, ...a) => env.DB.prepare(sql).bind(...a);
+  const [agg, modes, days, rec] = await Promise.all([
+    q('SELECT COUNT(*) AS races, COALESCE(SUM(points), 0) AS points FROM results WHERE by_player_id = ?', p.id).first(),
+    q('SELECT mode, MIN(time_s) AS best FROM results WHERE by_player_id = ? GROUP BY mode', p.id).all(),
+    q('SELECT DISTINCT day FROM results WHERE by_player_id = ? ORDER BY day', p.id).all(),
+    q(`SELECT MIN(time_s) AS best FROM results WHERE player_id = ? AND mode = 'classic'`, p.id).first(),
+  ]);
+  const { current, best } = streaks(days.results.map(d => d.day), amsDay());
+  return json({ player: { ...playerOut(p), best: rec?.best || null }, can_edit: captain || owner, owner, captain,
+    game: { races: agg.races, km: agg.races * 5, pb: Object.fromEntries(modes.results.map(m => [m.mode, m.best])),
+      streak: current, best_streak: best, points: { lifetime: agg.points, balance: agg.points - (p.spent_points || 0) } } });
+}
+const dayNum = d => Math.round(Date.parse(d + 'T00:00:00Z') / 864e5);
+function streaks(days, today) {
+  let best = 0, run = 0, prev = null;
+  for (const d of days) { const n = dayNum(d); run = prev !== null && n === prev + 1 ? run + 1 : 1; best = Math.max(best, run); prev = n; }
+  const current = prev !== null && dayNum(today) - prev <= 1 ? run : 0;   // still alive today or yesterday
+  return { current, best };
+}
+
+async function regenRecovery(req, env, id) {
+  const p = await loadPlayer(env, id);
+  if (!p || p.banned) return bad('Player not found', 404);
+  if (!await isCaptain(req, env, p) && !await ownsPlayer(req, env, p)) return bad('Only this player or the captain can do this.', 403);
+  return json({ recovery_code: await newRecovery(env, p) });
+}
+
+async function recoverProfile(req, env) {
+  let b; try { b = await req.json(); } catch { return bad('bad json'); }
+  const club = await clubBySlug(env, b.club);
+  if (!club) return bad('Club not found', 404);
+  if (await deviceBanned(req, env)) return bad('This device is blocked.', 403);
+  const v = await visitorHash(req, env);
+  if (!await bump(env, `recover:${v}:${utcDay()}`, RECOVER_TRIES_PER_VISITOR_PER_DAY)) return bad('Too many tries today. Try again tomorrow.', 429);
+  const p = await env.DB.prepare('SELECT * FROM players WHERE club_id = ? AND recovery_hash = ? AND removed = 0 AND banned = 0')
+    .bind(club.id, await recoveryHash(club.id, b.code)).first();
+  if (!p) return bad('That recovery code is not right for this club.', 404);
+  const token = randomHex(24);
+  await env.DB.prepare('INSERT INTO player_devices (token_hash, player_id, created_at) VALUES (?, ?, ?)').bind(await sha256(token), p.id, Date.now()).run();
+  return json({ player: playerOut(p), device_token: token });
+}
+
+/* captain moderation: reports for this club */
+async function captainReports(req, env, slug) {
+  const club = await clubBySlug(env, slug);
+  if (!club) return bad('Club not found', 404);
+  if (!await isCaptain(req, env, club)) return bad('Only the captain can see reports.', 403);
+  const { results } = await env.DB.prepare(`SELECT r.id, r.kind, r.reason, r.created_at, p.id AS player_id, p.name, p.photo_key, p.story
+      FROM reports r JOIN players p ON p.id = r.player_id WHERE r.club_id = ? AND r.status = 'open' AND p.removed = 0 ORDER BY r.created_at DESC LIMIT 50`).bind(club.id).all();
+  return json({ reports: results.map(r => ({ ...r, photo: playerOut(r).photo, photo_key: undefined })) });
+}
+async function captainAct(req, env, slug, id) {
+  const club = await clubBySlug(env, slug);
+  if (!club) return bad('Club not found', 404);
+  if (!await isCaptain(req, env, club)) return bad('Only the captain can do this.', 403);
+  let b; try { b = await req.json(); } catch { return bad('bad json'); }
+  if (b.action !== 'remove' && b.action !== 'dismiss') return bad('Unknown action');
+  const r = await env.DB.prepare('SELECT * FROM reports WHERE id = ? AND club_id = ?').bind(id, club.id).first();
+  if (!r) return bad('Report not found', 404);
+  return resolveReport(env, r, b.action);
 }
 
 async function removeContent(req, env, id, kind) {
@@ -307,9 +423,17 @@ async function submitResult(req, env) {
   const bid = int(b.by_player_id, 1, 1e9);
   if (bid) { const bp = await loadPlayer(env, bid); if (bp && bp.club_id === club.id && await ownsPlayer(req, env, bp)) by = bp.id; }
   const day = amsDay();
-  await env.DB.prepare('INSERT INTO results (club_id, player_id, by_player_id, mode, time_s, taps, max_cad, day, created_at, visitor) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .bind(club.id, runner.id, by, mode, time, taps, cad, day, Date.now(), v).run();
-  return json({ ok: true, day }, 201);
+  let points = 0, pb = false;
+  if (by) {   // points go to the profile on this device (they will pay for shoes in the shop)
+    const prev = await env.DB.prepare('SELECT MIN(time_s) AS best FROM results WHERE by_player_id = ? AND mode = ?').bind(by, mode).first();
+    const yday = new Date(Date.parse(day + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+    const raced = await env.DB.prepare('SELECT 1 FROM results WHERE by_player_id = ? AND day = ? LIMIT 1').bind(by, yday).first();
+    pb = !prev?.best || time < prev.best;
+    points = POINTS.race + (pb ? POINTS.pb : 0) + (raced ? POINTS.streak : 0);
+  }
+  await env.DB.prepare('INSERT INTO results (club_id, player_id, by_player_id, mode, time_s, taps, max_cad, day, created_at, visitor, points) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(club.id, runner.id, by, mode, time, taps, cad, day, Date.now(), v, points).run();
+  return json({ ok: true, day, points, pb }, 201);
 }
 
 async function leaderboard(req, env, slug) {
@@ -320,7 +444,7 @@ async function leaderboard(req, env, slug) {
   const out = {};
   for (const period of ['today', 'all']) {
     const where = period === 'today' ? 'AND r.day = ?' : '';
-    const stmt = env.DB.prepare(`SELECT p.nickname AS name, p.legacy_id, MIN(r.time_s) AS time_s,
+    const stmt = env.DB.prepare(`SELECT p.id AS player_id, p.nickname AS name, p.legacy_id, MIN(r.time_s) AS time_s,
         (SELECT nickname FROM players WHERE id = (SELECT by_player_id FROM results r2 WHERE r2.player_id = r.player_id AND r2.club_id = r.club_id AND r2.mode = r.mode ${period === 'today' ? 'AND r2.day = r.day' : ''} ORDER BY r2.time_s LIMIT 1)) AS by_name
         FROM results r JOIN players p ON p.id = r.player_id
         WHERE r.club_id = ? AND r.mode = ? AND p.removed = 0 AND p.banned = 0 ${where}
@@ -397,6 +521,10 @@ async function adminAct(req, env, id) {
   let b; try { b = await req.json(); } catch { return bad('bad json'); }
   const r = await env.DB.prepare('SELECT * FROM reports WHERE id = ?').bind(id).first();
   if (!r) return bad('Report not found', 404);
+  return resolveReport(env, r, b.action);
+}
+async function resolveReport(env, r, action) {
+  const b = { action };
   const p = await env.DB.prepare('SELECT * FROM players WHERE id = ?').bind(r.player_id).first();
   if (b.action === 'remove' || b.action === 'ban') {
     if (r.kind === 'photo' || b.action === 'ban') {
@@ -458,6 +586,7 @@ export default {
       if (m === 'POST' && path === '/api/clubs') return createClub(req, env);
       if (m === 'POST' && path === '/api/results') return submitResult(req, env);
       if (m === 'POST' && path === '/api/report') return report(req, env);
+      if (m === 'POST' && path === '/api/recover') return recoverProfile(req, env);
       let r;
       if ((r = path.match(/^\/api\/join\/([A-Za-z0-9]{6})$/)) && m === 'GET') {
         const c = await env.DB.prepare('SELECT slug FROM clubs WHERE join_code = ? AND removed = 0').bind(r[1].toUpperCase()).first();
@@ -466,7 +595,11 @@ export default {
       if ((r = path.match(/^\/api\/clubs\/([a-z0-9-]+)$/)) && m === 'GET') return getClub(req, env, r[1]);
       if ((r = path.match(/^\/api\/clubs\/([a-z0-9-]+)\/players$/)) && m === 'POST') return joinClub(req, env, r[1]);
       if ((r = path.match(/^\/api\/clubs\/([a-z0-9-]+)\/leaderboard$/)) && m === 'GET') return leaderboard(req, env, r[1]);
+      if ((r = path.match(/^\/api\/clubs\/([a-z0-9-]+)\/reports$/)) && m === 'GET') return captainReports(req, env, r[1]);
+      if ((r = path.match(/^\/api\/clubs\/([a-z0-9-]+)\/reports\/(\d+)$/)) && m === 'POST') return captainAct(req, env, r[1], +r[2]);
+      if ((r = path.match(/^\/api\/players\/(\d+)\/recovery$/)) && m === 'POST') return regenRecovery(req, env, +r[1]);
       if ((r = path.match(/^\/api\/players\/(\d+)$/))) {
+        if (m === 'GET') return getPlayer(req, env, +r[1]);
         if (m === 'PATCH') return editPlayer(req, env, +r[1]);
         if (m === 'DELETE') return deletePlayer(req, env, +r[1]);
       }

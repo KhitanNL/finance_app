@@ -102,7 +102,19 @@ CREATE TABLE IF NOT EXISTS banned_devices (
   created_at INTEGER NOT NULL
 );
 
+-- Extra devices of one player (a profile recovered on a new phone with its recovery code).
+CREATE TABLE IF NOT EXISTS player_devices (
+  token_hash TEXT PRIMARY KEY,
+  player_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS player_devices_p ON player_devices(player_id);
+CREATE INDEX IF NOT EXISTS results_by ON results(by_player_id, mode);
+
 CREATE TABLE IF NOT EXISTS limits (
   key TEXT PRIMARY KEY,           -- e.g. upload:<visitor>:<day>
   n INTEGER NOT NULL
 );
+
+-- Later columns (players.pbhalf, players.recovery_hash, players.spent_points, results.points)
+-- are added by worker/migrations.sql.

@@ -51,7 +51,7 @@ tools/deploy.sh
 ```
 
 `deploy.sh` is safe to run again. It creates or reuses the D1 database and R2 bucket, applies the schema and
-seed (`CREATE IF NOT EXISTS` / `INSERT OR IGNORE`, so existing data is kept), uploads the game images to R2,
+seed (`CREATE IF NOT EXISTS` / `INSERT OR IGNORE`, so existing data is kept), runs `worker/migrations.sql` (new columns), uploads the game images to R2,
 binds `DB` and `BUCKET` to the Pages project, builds and deploys.
 
 To change data of an existing row (for example a built-in runner's tagline), run an `UPDATE` with
@@ -82,6 +82,19 @@ Cloudflare dashboard > Workers & Pages > wolfpack-run > Settings > Variables and
   Lost it? In `/admin` > Clubs, press **New captain link** and send it privately (it replaces the old one).
 - Players edit their own profile with a private device token stored in the browser. Captains can edit anyone
   in their club, set stats (FAST + SLOW = 6, 14 points in total) and remove photos, stories and players.
+- **Profiles:** name, nickname, tagline (max 30), 5K PB (required), optional 10K, half and marathon PBs, bio (max 280),
+  photo (3:4) and stats. Tap a runner in the carousel, a leaderboard row or MY PROFILE to open a profile card with
+  PBs, stat bars (SPD = fast twitch, END = slow twitch, LOVE, JMP), the fast/slow twitch mix, game stats and the shoe wall.
+  Owners and captains can edit; others can report the photo or bio (captain: CLUB > REPORTS, admin: Moderation).
+- **Recovery code:** joining gives a one-time 8-character code (only its hash is stored). With it a player opens their
+  profile on a new phone (`POST /api/recover`). Captains can make a new code for any player, also to let the original
+  Wolfpack runners claim their built-in profile.
+- **Photos:** cropped to 3:4 in the browser (drag and zoom), resized to max 600x800 and saved as JPEG under 200 KB. The
+  server rejects non-JPEG and files over 2 MB and strips any EXIF/XMP left. Without a photo a pixel-art poster is drawn
+  from the runner's sprite and kit colour.
+- **Points:** 10 per race, +20 for a new personal best, +5 when you also raced the day before. Stored per result for
+  the shoe shop (`players.spent_points` holds what was spent).
+- The original Wolfpack runners keep their hand-made stats, so the classic game plays the same.
 - New players get stats suggested from their PBs (Riegel formula: a strong 10K or marathon for your 5K means
   more slow twitch).
 

@@ -28,6 +28,13 @@ for f in worker/schema.sql worker/seed.sql; do
     | jq_py "print('   $f:', 'ok' if d['success'] else d['errors'])"
 done
 
+for stmt in $(grep -c '^ALTER' worker/migrations.sql | xargs seq 1); do
+  sql=$(grep '^ALTER' worker/migrations.sql | sed -n "${stmt}p")
+  python3 -c "import json,sys; print(json.dumps({'sql': sys.argv[1]}))" "$sql" > /tmp/wr-sql.json
+  curl -sS "${AUTH[@]}" -X POST "$API/d1/database/$DB_ID/query" -H 'content-type: application/json' --data @/tmp/wr-sql.json \
+    | jq_py "print('   migration $stmt:', 'ok' if d['success'] else 'already done' if 'duplicate column' in str(d['errors']) else d['errors'])"
+done
+
 echo "3/6 R2 bucket + static images"
 curl -sS "${AUTH[@]}" -X POST "$API/r2/buckets" -H 'content-type: application/json' -d "{\"name\":\"$BUCKET\"}" \
   | jq_py "print('   bucket:', 'created' if d['success'] else 'exists' if any(e.get('code')==10004 for e in d['errors']) else d['errors'])"
