@@ -376,6 +376,9 @@ const RUNNERS = [
   { id:'jeroen', shouts:['CHIEF!', 'GO JEROEN!'], name:'JEROEN', full:'Jeroen', photo:'img/jeroen.jpg', tag:'Chief running officer.', known:'Dress code: blazer over the race vest',
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, st:4, love:2, jmp:3, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
+  { id:'blake', shouts:['GO DR BLAKE!', 'CRACK!', 'DOCTOR!', 'RE-ALIGN!'], name:'DR BLAKE', full:'Dr Blake', photo:'img/blake.jpg', tag:'The running re-aligner.', known:'Chiropractor by day, fast by Saturday',
+    perk:'Spinal adjustment: re-aligns at every km sign for a speed burst. Geese never knock him off balance.', spd:4, st:2, love:2, jmp:3, target:1065, fx:{ align:true }, head:'glasses',
+    pal:{ h:'#6a4426', s:'#eab48c', q:'#1b1420', L:'#cfeeff', t:'#ecebe6', n:'#3ec6ea', p:'#1f5f78', k:'#f0a020' } },
   { id:'rodi', shouts:['GO RODY!', 'DIESEL!', 'SLOW AND STEADY!', 'HERE COMES RODY!'], name:'RODY', full:'Rody', emoji:'🐢', photo:'', tag:'Mystery animal. A true diesel.', known:'Slow starter, unstoppable finisher',
     perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true }, body:'turtle',
     pal:{ S:'#5f7f2c', s:'#9cc24e', g:'#7cc65a', G:'#4f8f3a', y:'#e8d27a' } },
@@ -447,6 +450,7 @@ const HEADS = {
   curly: ["...h.hh.h...","..hhhhhhh...","..hhssss....","...hssos....","....ssss....",".....ss....."],
   dragon: ["...d.d.d....","..dddddd....","..ddqqqqd...","..ddqyqy....","..ddqqqq....","....qq......"],
   beard: ["....hhhh....","...hhhhhh...","...hssss....","...hssos....","....rrrr....",".....rr....."],
+  glasses: ["....hhhh....","...hhhhhh...","...hssss....","...hqLqLq...","....ssss....",".....ss....."],
   long:  ["...hhhhh....","..hhhhhhh...","..hhssss....","..hhssos....","..hhrrrr....","..h..rr....."],
   capf:  ["....HHHH....","...HHHHHHH..","...hssss....","...hssos....","....ssss....",".....ss....."],
   cap:   ["....hhhh....",".hhhhhhhh...","...hssss....","...hssos....","....ssss....",".....ss....."],
@@ -994,13 +998,17 @@ function update(dt){
       if (r.me.fx.immune){ msg(o.type === 'puddle' ? 'TURTLES LOVE WATER!' : 'GEESE DO NOT BOTHER A TURTLE', '#7fe07a'); continue; }
       const soft = r.me.fx.soft || 1;
       if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
-      else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
+      else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = r.me.fx.align ? 0 : 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
       sfx('hit'); try { navigator.vibrate && navigator.vibrate([30, 30, 30]); } catch(e){}
     }
   }
   // influencer: fans film you as you pass
   if (r.me.fx.fans) for (const c of r.crowds){
     if (!c.filmed && r.d >= c.d){ c.filmed = true; r.heartMult = 1.1; r.boost.heart = 3 * boostMult(); r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.35); r.hearts++; msg('GOING VIRAL!', '#ff6f8f'); sfx('item'); }
+  }
+  // chiropractor: re-aligned at every km sign
+  if (r.me.fx.align) for (const km of KM){
+    if (r.d >= km && !(r.aligned || (r.aligned = {}))[km]){ r.aligned[km] = 1; r.boost.nomio = 1.6 * boostMult(); r.e = Math.min(capOf(r), r.e + 0.5); msg('CRACK! RE-ALIGNED!', '#3ec6ea'); sfx('item'); }
   }
   // laps and finish
   if (r.lap === 1 && r.d >= LAP){ r.lap = 2; r.split = r.vt; msg('LAP 2! ' + fmt(r.vt), '#e6f02a'); sfx('lap'); }
