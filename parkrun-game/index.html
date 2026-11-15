@@ -51,6 +51,14 @@ body{
 }
 #muteBtn{right:max(8px,env(safe-area-inset-right,0px))}
 #exitBtn{left:max(8px,env(safe-area-inset-left,0px))}
+#seasonBtn{left:max(8px,env(safe-area-inset-left,0px))}
+#app[data-screen="race"] #seasonBtn{display:none}
+.season-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.season-grid .btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;font-size:10px}
+.season-grid .btn[aria-pressed="true"]{background:var(--hivis)}
+.season-grid .btn.wide{grid-column:1 / -1}
+.season-grid .ico{font-size:30px;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.season-grid small{font-family:var(--f-body);font-size:16px;text-transform:none;letter-spacing:0}
 #app:not([data-screen="race"]) #exitBtn{display:none}
 #app[data-screen="race"] #muteBtn,#app[data-screen="race"] #exitBtn{top:auto;bottom:14px}
 .hud-btn:focus-visible,.btn:focus-visible,.card:focus-visible,.look:focus-visible{outline:3px solid var(--hivis);outline-offset:3px}
@@ -375,6 +383,13 @@ p{margin:0;max-width:60ch}
   <button class="hud-btn poster-close" id="posterClose" type="button" aria-label="Close poster">✕ CLOSE</button>
   <button class="hud-btn poster-report" id="posterReport" type="button" hidden>REPORT PHOTO</button>
 </div>
+<div class="help" id="seasonModal" hidden role="dialog" aria-modal="true" aria-labelledby="seasonTitle">
+  <div class="help-box">
+    <div class="club-head"><h2 id="seasonTitle">SEASON</h2><button class="btn alt" id="seasonClose" type="button">CLOSE</button></div>
+    <p>Pick the weather for Zuiderpark. Just for the looks: the race plays exactly the same.</p>
+    <div class="season-grid" id="seasonGrid"></div>
+  </div>
+</div>
 <div class="help" id="clubModal" hidden role="dialog" aria-modal="true" aria-labelledby="clubTitle">
   <div class="help-box club-box">
     <div class="club-head"><h2 id="clubTitle">CLUB</h2><button class="btn alt" id="clubClose" type="button">CLOSE</button></div>
@@ -386,6 +401,7 @@ p{margin:0;max-width:60ch}
     <canvas id="game" width="320" height="192" aria-label="Zuiderpark parkrun game scene"></canvas>
     <button class="hud-btn" id="exitBtn" type="button">EXIT</button>
     <button class="hud-btn" id="muteBtn" type="button" aria-pressed="false">SOUND ON</button>
+    <button class="hud-btn" id="seasonBtn" type="button" aria-haspopup="dialog">SEASON</button>
   </div>
   <div id="panel">
     <section id="scr-title">
@@ -644,9 +660,10 @@ function buildStatic(){
     { h:'#5a3a22', s:'#c68642', t:'#47b84a', n:'#d6f5c8', p:'#1b1420', k:'#f4f4f4' },
   ].map(pal => runnerSprites({ head:'long', pal:Object.assign({ r:pal.s }, pal) }));
   IMG.goose = sprite(GOOSE_ROWS, { w:'#f4f2ea', G:'#c9c4b8', g:'#8a8578', y:'#f08a24', o:INK });
-  IMG.trees = [0,1,2,3].map(buildTree);
+  IMG.trees = [0,1,2,3].map(v => buildTree(v));
   IMG.clouds = [buildCloud(0,false), buildCloud(1,false)];
   IMG.cloudsSun = [buildCloud(0,true), buildCloud(1,true)];
+  buildSeasonArt();
   IMG.vol = [
     runnerSprites({ pal:{ h:'#6b4a2a', t:'#e6f02a', n:'#f08a24', p:'#2a2d40', k:'#3a3a3a', s:'#f1c27d' } }),
     runnerSprites({ pal:{ h:'#c9c4b8', t:'#e6f02a', n:'#f08a24', p:'#3a3f8f', k:'#f4f4f4', s:'#c68642' } }),
@@ -681,14 +698,15 @@ function runnerSprites(r){
   }
   return set;
 }
-function buildTree(v){
+function buildTree(v, cols){
   const c = mk(34, 44), g = c.getContext('2d');
   g.fillStyle = INK; g.fillRect(13, 26, 8, 18);
   g.fillStyle = '#7a4a2a'; g.fillRect(14, 26, 6, 18);
   g.fillStyle = '#5a3420'; g.fillRect(14, 26, 2, 18);
+  if (cols === 'bare') return buildBareTree(c, g, v);
   const blobs = v === 0 ? [[17,15,10],[9,20,7],[25,20,7]] : v === 1 ? [[17,11,8],[17,22,9]] : [[17,17,12]];
   const autumn = v === 3;
-  const dark = autumn ? '#c9631e' : '#2f8a3a', mid = autumn ? '#e8902e' : '#47a84a', lite = autumn ? '#f6c25a' : '#7fd06a';
+  const [dark, mid, lite] = cols || (autumn ? ['#c9631e', '#e8902e', '#f6c25a'] : ['#2f8a3a', '#47a84a', '#7fd06a']);
   blobs.forEach(([x,y,r]) => pcirc(g, x, y, r + 1, INK));
   blobs.forEach(([x,y,r]) => pcirc(g, x, y, r, dark));
   blobs.forEach(([x,y,r]) => pcirc(g, x - 2, y - 2, Math.max(2, r - 3), mid));
@@ -696,12 +714,22 @@ function buildTree(v){
   for (let i = 0; i < 9; i++){ const b = blobs[i % blobs.length]; g.fillRect(b[0] - 4 + ((i*5) % 7), b[1] - 5 + ((i*3) % 6), 1, 1); }
   return c;
 }
-function buildCloud(v, sunset){
+// winter: bare branches with snow on top
+function buildBareTree(c, g, v){
+  const br = (x, y, dx, dy, n) => { for (let i = 0; i < n; i++){ g.fillStyle = INK; g.fillRect(x + dx * i - 1, y + dy * i, 3, 2); g.fillStyle = '#6a4a32'; g.fillRect(x + dx * i, y + dy * i, 1, 1); g.fillStyle = '#f4f8ff'; g.fillRect(x + dx * i, y + dy * i - 1, 1, 1); } };
+  g.fillStyle = INK; g.fillRect(15, 8, 4, 20); g.fillStyle = '#6a4a32'; g.fillRect(16, 8, 2, 20);
+  br(17, 22, -1, -1, 9 - v); br(17, 20, 1, -1, 9 - v); br(17, 14, -1, -1, 6); br(17, 12, 1, -1, 6 + v);
+  br(17, 8, 0, -1, 5); br(10, 15, -1, 0, 3); br(24, 13, 1, 0, 3);
+  g.fillStyle = '#f4f8ff'; g.fillRect(15, 7, 4, 1); g.fillRect(13, 43, 8, 1);
+  return c;
+}
+function buildCloud(v, sunset, tint){
   const c = mk(48, 22), g = c.getContext('2d');
   const blobs = v ? [[12,13,7],[22,9,8],[33,12,7],[40,15,5]] : [[10,14,6],[20,10,8],[31,13,7]];
-  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r + 1, sunset ? '#8a5a7a' : '#2e6fa8'));
-  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r, sunset ? '#ffc7a0' : '#ffffff'));
-  g.fillStyle = sunset ? '#e89a9a' : '#cfe8fb';
+  const [edge, body, base] = tint || (sunset ? ['#8a5a7a', '#ffc7a0', '#e89a9a'] : ['#2e6fa8', '#ffffff', '#cfe8fb']);
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r + 1, edge));
+  blobs.forEach(([x,y,r]) => pcirc(g, x, y, r, body));
+  g.fillStyle = base;
   g.fillRect(4, 17, 42, 2);
   return c;
 }
@@ -762,6 +790,7 @@ function drawBuilding(x, time, sunset){
   if (x > W + 4 || x + BW < -4) return;
   const by = PATH_TOP - 2 - BH;
   ctx.drawImage(BUILDING.img, x, by);
+  if (SZ().snowRoof){ ctx.fillStyle = '#f4f8ff'; BUILDING.edges.forEach(([top], i) => ctx.fillRect(x + i, by + top, 1, 2 + (hash(i * 3) > 0.7 ? 1 : 0))); }
   // travelling sheen across the panels
   const e = BUILDING.edges;
   ctx.fillStyle = sunset ? 'rgba(255,214,120,.85)' : 'rgba(255,248,214,.8)';
@@ -780,6 +809,74 @@ const SKY_SUN = ['#5d6ea8','#7a7fb4','#9a8cba','#c497b4','#e8a3a0','#f5b488','#f
 const BLD_X = [0, LAP * PXM, TOTAL * PXM];
 const KM = [1000, 2000, 3000, 4000];
 
+/* ---------- seasons: four looks of the Zuiderpark level. Only cosmetic: the race plays exactly the same. ---------- */
+const SUMMER_DAY = { sky:SKY_DAY, h1:['#7ccf74','#2f7a36','#5fb25a'], h2:['#55b64e','#256a2e','#3f9a3e'], back:['#4cb846','#2f8a36'],
+  front:['#2f8a36','#43b33e','#4cbb46'], deco:['#e8902e','#f2c14e'], decoRate:0.14, tuft:'#2f8a36', path:['#4a464f','#6c6872','#2e2b33'] };
+const SUMMER_SUN = { sky:SKY_SUN, h1:['#5a8a6a','#2f4a3a','#4a7a5a'], h2:['#3f7a52','#24402e','#356a46'], back:['#3d7f3a','#2a5a2e'],
+  front:['#245a2a','#36763a','#3d7f3a'], deco:['#e8902e','#f2c14e'], decoRate:0.14, tuft:'#245a2a', path:['#4a464f','#6c6872','#2e2b33'] };
+const SEASONS = {
+  spring: { name:'SPRING', icon:'🌸', trees:'spring', weather:'petals',
+    day: { ...SUMMER_DAY, sky:['#5cb6f4','#68bdf5','#76c5f6','#86cdf7','#98d5f8','#acdef9','#c2e8fb'], h1:['#9ae08a','#3a9a44','#78cc6a'], h2:['#6ccc5e','#2e8a36','#52b44c'],
+      back:['#5fcc52','#36a03c'], front:['#36a03c','#56c24c','#62cc56'], deco:['#ffffff','#ffe066','#f4a7c4','#ffffff'], decoRate:0.2, tuft:'#36a03c' },
+    sun: { ...SUMMER_SUN, deco:['#ffe0ec','#ffe066','#f4a7c4'], decoRate:0.2 } },
+  summer: { name:'SUMMER', icon:'☀️', trees:'summer', weather:'sun', day: SUMMER_DAY, sun: SUMMER_SUN },
+  autumn: { name:'AUTUMN', icon:'🍂', trees:'autumn', weather:'leaves', clouds:'grey',
+    day: { sky:['#6a9bc8','#76a4cd','#84aed3','#93b8d8','#a3c2dc','#b5cce0','#c8d6e2'], h1:['#b0a24a','#5a5224','#928636'], h2:['#8f9a3e','#4a5622','#748030'],
+      back:['#7a9c40','#4a6a28'], front:['#4a6a28','#6e9238','#789c40'], deco:['#c8321e','#e8702e','#f2b03a','#8a4a22'], decoRate:0.34, tuft:'#4a6a28', path:['#4a464f','#6c6872','#2e2b33'], pathLeaves:true },
+    sun: { ...SUMMER_SUN, h1:['#7a7040','#3e3a22','#6a6236'], h2:['#6a6a36','#34361e','#585a2e'], back:['#5e6a2e','#3e4a22'], front:['#3e4a22','#566426','#5e6a2e'],
+      deco:['#c8321e','#e8702e','#f2b03a'], decoRate:0.34, tuft:'#3e4a22', pathLeaves:true } },
+  winter: { name:'WINTER', icon:'❄️', trees:'winter', weather:'snow', clouds:'snow', snowRoof:true, ice:true,
+    day: { sky:['#8fa9c8','#9ab2cf','#a6bbd5','#b2c4da','#bfcde0','#ccd7e6','#d9e1ec'], h1:['#eef3fa','#9aa8c0','#c8d4e6'], h2:['#dfe8f4','#8a98b2','#bccadf'],
+      back:['#e6eef8','#a8b6cc'], front:['#a8b6cc','#e2eaf5','#eef3fa'], deco:['#c8d4e6','#b8c6dc'], decoRate:0.1, tuft:'#b8c6dc', path:['#56535e','#f4f8ff','#33303a'], snowPath:true },
+    sun: { sky:['#4a4f7a','#62668f','#7d7ea3','#9a93b2','#b8a6bd','#d4b8c0','#ead0c4'], h1:['#c8bcd4','#6a6488','#b4a8c6'], h2:['#b8acc8','#5a5478','#a498ba'],
+      back:['#c4b8d2','#7a7298'], front:['#7a7298','#bcb0cc','#c8bcd6'], deco:['#a89cbe'], decoRate:0.1, tuft:'#a89cbe', path:['#4e4b58','#e8e0f0','#2e2b36'], snowPath:true } },
+};
+const SEASON_KEYS = ['spring', 'summer', 'autumn', 'winter'];
+let seasonChoice = store.get('season', 'random');   // 'random' or one of SEASON_KEYS
+if (seasonChoice !== 'random' && !SEASONS[seasonChoice]) seasonChoice = 'random';
+let SEASON = seasonChoice === 'random' ? SEASON_KEYS[Math.floor(Math.random() * 4)] : seasonChoice;
+const SZ = () => SEASONS[SEASON];
+function rollSeason(){ if (seasonChoice === 'random') SEASON = SEASON_KEYS[Math.floor(Math.random() * 4)]; setSeasonLabel(); }
+function buildSeasonArt(){
+  const T = (cols) => [0,1,2,3].map(v => buildTree(v, cols ? cols[v] : undefined));
+  IMG.treeSets = {
+    summer: IMG.trees,
+    spring: T([['#d9709a','#f4a7c4','#ffe0ec'], ['#3f9a3a','#5fc04e','#a8ec86'], ['#c8b8c4','#f6eaf0','#ffffff'], ['#d9709a','#f4a7c4','#ffe0ec']]),
+    autumn: T([['#a8321e','#d9502e','#f08a5a'], ['#c9631e','#e8902e','#f6c25a'], ['#b8901e','#e8c43a','#fff08a'], ['#7a4a22','#a8682e','#d09a4a']]),
+    winter: T(['bare', 'bare', 'bare', 'bare']),
+  };
+  IMG.cloudSets = {
+    grey: [[buildCloud(0, false, ['#5a7090','#e8edf3','#c4ced9']), buildCloud(1, false, ['#5a7090','#e8edf3','#c4ced9'])], IMG.cloudsSun],
+    snow: [[buildCloud(0, false, ['#7a88a0','#f2f5fa','#d4dce8']), buildCloud(1, false, ['#7a88a0','#f2f5fa','#d4dce8'])], [buildCloud(0, true, ['#6a6488','#e4d8ea','#c8b8d4']), buildCloud(1, true, ['#6a6488','#e4d8ea','#c8b8d4'])]],
+  };
+}
+// weather particles in screen space (petals, falling leaves, rain, snow); drift follows the runner
+function drawWeather(t){
+  const S = SZ(), kind = S.weather, drift = race && G.screen === 'race' ? race.d * PXM * 0.35 : 0;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const fall = (n, speed, sway, draw) => {
+    for (let i = 0; i < n; i++){
+      const sp = speed * (0.6 + hash(i * 7 + 3) * 0.8);
+      const y = ((hash(i * 11 + 1) * (CH + 12) + t * sp) % (CH + 12)) - 6;
+      const x = (((hash(i * 13 + 5) * W + drift + t * sp * 0.25 + Math.sin(t * 1.3 + i) * sway) % W) + W) % W;
+      draw(Math.round(x), Math.round(y), i);
+    }
+  };
+  if (kind === 'snow') fall(70, 16, 6, (x, y, i) => { ctx.fillStyle = i % 5 ? '#ffffff' : '#dfe8f4'; ctx.fillRect(x, y, i % 4 ? 1 : 2, i % 4 ? 1 : 2); });
+  else if (kind === 'petals') fall(22, 12, 10, (x, y, i) => { ctx.fillStyle = i % 3 ? '#f8b8d0' : '#ffffff'; ctx.fillRect(x, y, 2, 1); if (i % 2) ctx.fillRect(x + 1, y + 1, 1, 1); });
+  else if (kind === 'leaves'){
+    fall(24, 14, 12, (x, y, i) => { ctx.fillStyle = ['#c8321e','#e8702e','#f2b03a','#a8682e'][i % 4]; ctx.fillRect(x, y, 2, 2); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 1, y + 1, 1, 1); });
+    ctx.fillStyle = 'rgba(200,215,235,.55)';
+    for (let i = 0; i < 46; i++){   // light drizzle
+      const sp = 150 * (0.8 + hash(i * 5) * 0.4), y = ((hash(i * 17 + 2) * (CH + 20) + t * sp) % (CH + 20)) - 10;
+      const x = (((hash(i * 19 + 4) * W + drift - y * 0.25) % W) + W) % W;
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 3);
+    }
+  } else if (kind === 'sun' && G.screen !== 'title'){
+    // butterflies on a summer day
+    fall(4, 6, 18, (x, y, i) => { if (y < OFF + 60 || y > CH - 20) return; const f = Math.floor(t * 8 + i) % 2; ctx.fillStyle = ['#ffd23f','#ffffff','#ff9ec4','#9fdcff'][i]; ctx.fillRect(x - 1 - f, y, 1 + f, 2); ctx.fillRect(x + 1, y, 1 + f, 2); ctx.fillStyle = INK; ctx.fillRect(x, y, 1, 2); });
+  }
+}
 function drawHills(camX, f, baseY, amp, col, edge, dot, seed){
   const off = camX * f;
   for (let x = 0; x < W; x++){
@@ -852,13 +949,19 @@ function drawCheck(x){
 }
 
 function drawScene(camX, time, sunset){
-  const sky = sunset ? SKY_SUN : SKY_DAY;
+  const S = SZ(), P = sunset ? S.sun : S.day;
+  const sky = P.sky;
   const bandH = Math.ceil(136 / sky.length);
   sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, i * bandH, W, bandH + 1); });
-  if (sunset){ ctx.fillStyle = '#ffe08a'; pcirc(ctx, Math.round(W * 0.82), 112, 9, '#ffd36a'); }
+  if (sunset){ ctx.fillStyle = '#ffe08a'; pcirc(ctx, Math.round(W * 0.82), 112, 9, SEASON === 'winter' ? '#ffd9b0' : '#ffd36a'); }
+  else if (S.weather === 'sun'){   // summer sun with pixel rays
+    const sx = Math.round(W * 0.2), sy = 24, ph = Math.floor(time * 2) % 2;
+    ctx.fillStyle = '#fff3b0'; for (let a = 0; a < 8; a++){ const an = a * Math.PI / 4; ctx.fillRect(Math.round(sx + Math.cos(an) * (13 + ph)), Math.round(sy + Math.sin(an) * (13 + ph)), 2, 2); }
+    pcirc(ctx, sx, sy, 9, '#ffe066'); pcirc(ctx, sx - 2, sy - 2, 5, '#fff3b0');
+  }
   // clouds
   const cw = 150, coff = camX * 0.08 + time * 3;
-  const clouds = sunset ? IMG.cloudsSun : IMG.clouds;
+  const clouds = S.clouds ? IMG.cloudSets[S.clouds][sunset ? 1 : 0] : sunset ? IMG.cloudsSun : IMG.clouds;
   for (let k = Math.floor(coff / cw) - 1; k <= Math.floor((coff + W) / cw) + 1; k++){
     if (hash(k * 7 + 1) < 0.2) continue;
     ctx.drawImage(clouds[k & 1], Math.round(k * cw - coff + hash(k * 3) * 70), Math.round(10 + hash(k * 5) * 46));
@@ -869,19 +972,19 @@ function drawScene(camX, time, sunset){
     if (hash(k * 11 + 5) < 0.45) continue;
     drawTower(Math.round(k * tw - toff + hash(k * 13) * 200), 126);
   }
-  drawHills(camX, 0.22, 128, 30, sunset ? '#5a8a6a' : '#7ccf74', sunset ? '#2f4a3a' : '#2f7a36', sunset ? '#4a7a5a' : '#5fb25a', 1.3);
-  drawHills(camX, 0.36, 136, 22, sunset ? '#3f7a52' : '#55b64e', sunset ? '#24402e' : '#256a2e', sunset ? '#356a46' : '#3f9a3e', 4.1);
+  drawHills(camX, 0.22, 128, 30, P.h1[0], P.h1[1], P.h1[2], 1.3);
+  drawHills(camX, 0.36, 136, 22, P.h2[0], P.h2[1], P.h2[2], 4.1);
   // tree line
   const trw = 26, troff = camX * 0.6;
   for (let k = Math.floor(troff / trw) - 2; k <= Math.floor((troff + W) / trw) + 1; k++){
     const hh = hash(k * 19 + 2);
     if (hh < 0.35) continue;
     const v = hh > 0.9 ? 3 : Math.floor(hash(k * 23) * 3);
-    ctx.drawImage(IMG.trees[v], Math.round(k * trw - troff + hash(k * 29) * 10), 140 - 44 + Math.floor(hash(k * 31) * 4));
+    ctx.drawImage((IMG.treeSets && IMG.treeSets[S.trees] || IMG.trees)[v], Math.round(k * trw - troff + hash(k * 29) * 10), 140 - 44 + Math.floor(hash(k * 31) * 4));
   }
   // back lawn
-  ctx.fillStyle = sunset ? '#3d7f3a' : '#4cb846'; ctx.fillRect(0, 134, W, PATH_TOP - 134);
-  ctx.fillStyle = sunset ? '#2a5a2e' : '#2f8a36'; ctx.fillRect(0, 134, W, 1);
+  ctx.fillStyle = P.back[0]; ctx.fillRect(0, 134, W, PATH_TOP - 134);
+  ctx.fillStyle = P.back[1]; ctx.fillRect(0, 134, W, 1);
   // props that live in the world (1:1 with the path)
   for (let k = Math.floor((camX - 200) / 150); k <= Math.floor((camX + W + 200) / 150); k++){
     const lx = k * 150 + 60;
@@ -900,33 +1003,34 @@ function drawScene(camX, time, sunset){
   });
   KM.forEach(m => { const x = Math.round(m * PXM - camX); if (x > -20 && x < W + 20) drawKmBoard(x, (m / 1000) + 'K'); });
   // path
-  ctx.fillStyle = '#4a464f'; ctx.fillRect(0, PATH_TOP, W, PATH_BOT - PATH_TOP);
-  ctx.fillStyle = '#6c6872'; ctx.fillRect(0, PATH_TOP, W, 1);
-  ctx.fillStyle = '#2e2b33'; ctx.fillRect(0, PATH_BOT - 1, W, 1);
+  ctx.fillStyle = P.path[0]; ctx.fillRect(0, PATH_TOP, W, PATH_BOT - PATH_TOP);
+  ctx.fillStyle = P.path[1]; ctx.fillRect(0, PATH_TOP, W, P.snowPath ? 2 : 1);
+  ctx.fillStyle = P.path[2]; ctx.fillRect(0, PATH_BOT - 1, W, 1);
   const s0 = Math.floor(camX / 3);
   for (let k = s0; k < s0 + W / 3 + 2; k++){
     const h = hash(k * 13 + 7);
     if (h < 0.55){
-      ctx.fillStyle = h < 0.2 ? '#5f5b65' : '#3a3740';
-      ctx.fillRect(Math.round(k * 3 - camX), PATH_TOP + 2 + Math.floor(hash(k * 17) * (PATH_BOT - PATH_TOP - 4)), 1, 1);
+      ctx.fillStyle = P.pathLeaves && h < 0.12 ? ['#c8321e','#e8702e','#f2b03a'][Math.floor(h * 25) % 3] : P.snowPath && h < 0.16 ? '#e8eef8' : h < 0.2 ? '#5f5b65' : '#3a3740';
+      ctx.fillRect(Math.round(k * 3 - camX), PATH_TOP + 2 + Math.floor(hash(k * 17) * (PATH_BOT - PATH_TOP - 4)), P.pathLeaves && h < 0.12 ? 2 : 1, 1);
     }
   }
   BLD_X.forEach(bx => { const x = Math.round(bx - camX); if (x > -8 && x < W + 8) drawCheck(x - 2); });
   // front lawn with mowing stripes and fallen leaves
-  ctx.fillStyle = sunset ? '#245a2a' : '#2f8a36'; ctx.fillRect(0, PATH_BOT, W, 2);
+  ctx.fillStyle = P.front[0]; ctx.fillRect(0, PATH_BOT, W, 2);
   for (let x = 0; x < W; x += 1){
     const wx = Math.floor(x + camX);
-    ctx.fillStyle = (Math.floor(wx / 28) % 2) ? (sunset ? '#36763a' : '#43b33e') : (sunset ? '#3d7f3a' : '#4cbb46');
+    ctx.fillStyle = (Math.floor(wx / 28) % 2) ? P.front[1] : P.front[2];
     ctx.fillRect(x, PATH_BOT + 2, 1, H - PATH_BOT - 2);
   }
   const l0 = Math.floor(camX / 5);
   for (let k = l0; k < l0 + W / 5 + 2; k++){
     const h = hash(k * 37 + 11);
     const x = Math.round(k * 5 - camX), y = PATH_BOT + 4 + Math.floor(hash(k * 43) * (H - PATH_BOT - 6));
-    if (h < 0.14){ ctx.fillStyle = h < 0.06 ? '#e8902e' : '#f2c14e'; ctx.fillRect(x, y, 2, 1); }
-    else if (h < 0.3){ ctx.fillStyle = sunset ? '#245a2a' : '#2f8a36'; ctx.fillRect(x, y, 1, 2); ctx.fillRect(x + 2, y, 1, 2); ctx.fillRect(x + 1, y + 1, 1, 1); }
+    if (h < P.decoRate){ ctx.fillStyle = P.deco[Math.floor(h / P.decoRate * P.deco.length) % P.deco.length]; ctx.fillRect(x, y, 2, 1); }
+    else if (h < P.decoRate + 0.16){ ctx.fillStyle = P.tuft; ctx.fillRect(x, y, 1, 2); ctx.fillRect(x + 2, y, 1, 2); ctx.fillRect(x + 1, y + 1, 1, 1); }
   }
   if (sunset){ ctx.fillStyle = 'rgba(110,40,90,.18)'; ctx.fillRect(0, 96, W, H - 96); }
+  else if (SEASON === 'autumn'){ ctx.fillStyle = 'rgba(90,80,70,.08)'; ctx.fillRect(0, 0, W, H); }
 }
 
 /* ---------- text ---------- */
@@ -1000,6 +1104,24 @@ function music(){
     if (i % 4 === 2 || (p > 0.5 && i % 2 === 1) || p > 0.8) tone(4000, AU.nextT, 0.02, 'square', p > 0.8 ? 0.008 : 0.006);   // more hi-hats as you go
     AU.nextT += step; AU.step++;
   }
+}
+function setSeasonLabel(){
+  const b = $('#seasonBtn'); if (!b) return;
+  b.textContent = (seasonChoice === 'random' ? 'RANDOM: ' : '') + SEASONS[SEASON].name;
+  b.setAttribute('aria-label', 'Season: ' + (seasonChoice === 'random' ? 'random, now ' : '') + SEASONS[SEASON].name.toLowerCase() + '. Change season');
+}
+const SEASON_NOTES = { random:'A new season every race', spring:'Blossom and petals', summer:'Sun and butterflies', autumn:'Falling leaves and drizzle', winter:'Snow and icy puddles' };
+function openSeasons(){
+  const opts = ['random', ...SEASON_KEYS];
+  $('#seasonGrid').innerHTML = opts.map(k => `<button class="btn alt${k === 'random' ? ' wide' : ''}" type="button" data-season="${k}" aria-pressed="${seasonChoice === k}">
+    <span class="ico" aria-hidden="true">${k === 'random' ? '🎲' : SEASONS[k].icon}</span>${k === 'random' ? 'RANDOM' : SEASONS[k].name}<small>${SEASON_NOTES[k]}</small></button>`).join('');
+  $('#seasonModal').hidden = false; $('#seasonClose').focus();
+}
+function setSeason(k){
+  seasonChoice = k; store.set('season', k);
+  SEASON = k === 'random' ? SEASON_KEYS[Math.floor(Math.random() * 4)] : k;
+  setSeasonLabel(); sfx('select');
+  document.querySelectorAll('#seasonGrid [data-season]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.season === k)));
 }
 function setMuteLabel(){ const b = $('#muteBtn'); b.textContent = AU.muted ? 'SOUND OFF' : 'SOUND ON'; b.setAttribute('aria-pressed', String(AU.muted)); }
 
@@ -1154,7 +1276,7 @@ function update(dt){
       }
       const soft = r.me.fx.soft || 1;
       if (o.type === 'puddle' && r.me.fx.shepherd){ msg('PEACE LIKE A RIVER', '#9fdcff'); continue; }
-      if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg('SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
+      if (o.type === 'puddle'){ r.slow = 1.0 * soft; r.e *= 1 - 0.35 * soft; msg(SZ().ice ? 'SLIPPERY!' : 'SPLASH!', '#9fdcff'); burst(o.d * PXM, PATH_TOP + 10, '#9fdcff', 14, 60); }
       else { r.slow = 1.2 * soft; r.e *= 1 - 0.5 * soft; r.stumble = r.me.fx.align || r.me.fx.shepherd ? 0 : 0.6 * soft; msg('HONK! GOOSE!', '#f4f2ea'); }
       sfx('hit'); try { navigator.vibrate && navigator.vibrate([30, 30, 30]); } catch(e){}
     }
@@ -1197,10 +1319,14 @@ function drawRunner(set, frame, x, foot){ ctx.drawImage(set[frame], Math.round(x
 function shadow(x, foot, w){ ctx.fillStyle = 'rgba(20,14,26,.35)'; ctx.fillRect(Math.round(x - w / 2), foot, w, 2); }
 
 function render(){
+  renderScene();
+  if (G.screen !== 'race'){ drawWeather(G.time); ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false; }
+}
+function renderScene(){
   ctx.imageSmoothingEnabled = false;
   const t = G.time;
   ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
-  if (OFF > 0){ ctx.fillStyle = G.screen === 'title' ? SKY_SUN[0] : SKY_DAY[0]; ctx.fillRect(0, 0, W, OFF + 2); }
+  if (OFF > 0){ ctx.fillStyle = (G.screen === 'title' ? SZ().sun : SZ().day).sky[0]; ctx.fillRect(0, 0, W, OFF + 2); }
   ctx.setTransform(-1, 0, 0, 1, W, OFF); FLIP = true;
   if (G.screen === 'title'){
     const camX = -W / 2 + Math.sin(t * 0.25) * 24 + 10;
@@ -1263,9 +1389,10 @@ function render(){
   for (const o of r.obstacles){
     const x = Math.round(o.d * PXM - camX); if (x < -20 || x > W + 20) continue;
     if (o.type === 'puddle'){
+      const ice = SZ().ice;
       ctx.fillStyle = INK; ctx.fillRect(x - 8, FOOT_ME - 2, 16, 4);
-      ctx.fillStyle = '#5aa8e0'; ctx.fillRect(x - 7, FOOT_ME - 1, 14, 2);
-      ctx.fillStyle = '#bfe6ff'; ctx.fillRect(x - 4, FOOT_ME - 1, 4, 1);
+      ctx.fillStyle = ice ? '#cfe8f5' : '#5aa8e0'; ctx.fillRect(x - 7, FOOT_ME - 1, 14, 2);
+      ctx.fillStyle = ice ? '#ffffff' : '#bfe6ff'; ctx.fillRect(x - 4, FOOT_ME - 1, 4, 1); if (ice) ctx.fillRect(x + 3, FOOT_ME, 2, 1);
     } else {
       const bob = Math.floor(t * 6 + o.d) % 2;
       ctx.drawImage(IMG.goose, x - 7, FOOT_ME - 12 - bob);
@@ -1300,6 +1427,7 @@ function render(){
   }
   for (const p of r.parts){ ctx.fillStyle = p.col; ctx.fillRect(Math.round(p.x - camX), Math.round(p.y), 2, 2); }
   ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
+  drawWeather(t);
   if (G.screen === 'race') drawHUD(PX);
 }
 
@@ -1412,6 +1540,7 @@ function startRace(){
   if (G.screen === 'select' && G.teaser >= 0) return;   // teasers are not playable
   if (isLocked(G.sel)) return;                            // locked runners are not playable yet
   audioInit();
+  rollSeason();
   newRace();
   trackEvent('race_start', { runner: race.me.id, mode: 'classic' });
   const picks = store.get('picks.' + clubSlug, {}) || {}; picks[race.me.id] = (picks[race.me.id] || 0) + 1; store.set('picks.' + clubSlug, picks);
@@ -2450,6 +2579,13 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#help').
 $('#againBtn').addEventListener('click', startRace);
 $('#changeBtn').addEventListener('click', () => { show('select'); renderCards(); setTimeout(() => choose(G.sel, true), 30); });
 $('#exitBtn').addEventListener('click', () => { AU.playing = false; releaseWake(); race = null; show('select'); renderCards(); });
+$('#seasonBtn').addEventListener('click', () => { audioInit(); openSeasons(); });
+$('#seasonClose').addEventListener('click', () => { $('#seasonModal').hidden = true; $('#seasonBtn').focus(); });
+$('#seasonModal').addEventListener('click', e => {
+  if (e.target.id === 'seasonModal') return void ($('#seasonModal').hidden = true);
+  const b = e.target.closest('[data-season]'); if (b){ setSeason(b.dataset.season); setTimeout(() => { $('#seasonModal').hidden = true; }, 250); }
+});
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#seasonModal').hidden) $('#seasonModal').hidden = true; });
 $('#muteBtn').addEventListener('click', () => { AU.muted = !AU.muted; store.set('muted', AU.muted); setMuteLabel(); audioInit(); });
 $('#copyBtn').addEventListener('click', () => {
   const done = ok => { $('#copyMsg').textContent = ok ? 'Result copied. Paste it in the group chat.' : 'Select the text below and copy it.'; };
@@ -2509,7 +2645,7 @@ loadClub().then(() => {
 });
 (() => { const q = new URLSearchParams(location.search);
   trackEvent('page_view', { path: location.pathname, referrer: document.referrer, utm_source: q.get('utm_source'), utm_medium: q.get('utm_medium'), utm_campaign: q.get('utm_campaign') }); })();
-setMuteLabel();
+setMuteLabel(); setSeasonLabel();
 resize();
 requestAnimationFrame(frame);
 if (document.fonts && document.fonts.load){ document.fonts.load('8px "Press Start 2P"').catch(() => {}); }
