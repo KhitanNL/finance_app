@@ -72,8 +72,8 @@ h2{font-size:14px;line-height:1.5;letter-spacing:.04em}
 p{margin:0;max-width:60ch}
 .lead{color:var(--paper);font-size:21px}
 .muted{color:var(--muted)}
-.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:0;padding:0;list-style:none}
-.legend li{display:flex;align-items:center;gap:6px;font-size:19px}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin:0;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:6px;font-size:18px;line-height:1.05;min-width:0}
 .legend canvas{width:24px;height:24px;image-rendering:pixelated}
 
 .btn{
@@ -320,14 +320,13 @@ p{margin:0;max-width:60ch}
   </div>
   <div id="panel">
     <section id="scr-title">
-      <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
       <div class="clubbar" id="clubBar"><span class="club-dot" id="clubDot"></span><span><b id="clubName">WOLFPACK ZUIDERPARK</b><small id="clubSub">Zuiderpark, Den Haag</small></span><button class="btn alt" id="lbBtn" type="button">RANKS</button><button class="btn alt" id="clubBtn" type="button">CLUB</button></div>
+      <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
+      <p class="muted" id="titleBest"></p>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
       <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
-      <button class="btn hot" id="startBtn" type="button"><span class="blink">PRESS START</span></button>
-      <p class="muted" id="titleBest"></p>
     </section>
 
     <section id="scr-select" hidden>
