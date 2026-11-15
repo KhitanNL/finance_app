@@ -379,6 +379,9 @@ const RUNNERS = [
   { id:'blake', shouts:['GO DR BLAKE!', 'CRACK!', 'DOCTOR!', 'RE-ALIGN!'], name:'DR BLAKE', full:'Dr Blake', photo:'img/blake.jpg', tag:'The running re-aligner.', known:'Chiropractor by day, fast by Saturday',
     perk:'Spinal adjustment: re-aligns at every km sign for a speed burst. Geese never knock him off balance.', spd:4, st:2, love:2, jmp:3, target:1065, fx:{ align:true }, head:'glasses', coat:true,
     pal:{ h:'#6a4426', s:'#eab48c', q:'#1b1420', L:'#cfeeff', t:'#f4f3ee', c:'#f4f3ee', n:'#d2d0c8', p:'#f4f3ee', u:'#2f3448', k:'#5a3a22' } },
+  { id:'mao', shouts:['EPO?!', 'DOPING CONTROL!', 'BEET DEALER!', 'GO MAO!', 'NOMIO!'], name:'MAO', full:'Mao', photo:'img/mao.jpg', tag:'The beet dealer.', known:'5K 17:10 · grows his own beets',
+    perk:'Beet dealer: beetroot and Nomio hit 30% harder and last longer for him. Starts with a shot from his own garden. The fans keep shouting EPO.', spd:3, st:3, love:2, jmp:3, target:1030, fx:{ dealer:true }, head:'glasses', coat:true,
+    pal:{ h:'#1b1420', s:'#e2b07e', q:'#5a3a22', L:'#d8c8a8', t:'#6b4a32', c:'#6b4a32', n:'#a3164e', p:'#6b4a32', u:'#2f4a2a', k:'#3a2a1e' } },
   { id:'rodi', shouts:['GO RODY!', 'DIESEL!', 'SLOW AND STEADY!', 'HERE COMES RODY!'], name:'RODY', full:'Rody', emoji:'🐢', photo:'', tag:'Mystery animal. A true diesel.', known:'Slow starter, unstoppable finisher',
     perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true }, body:'turtle',
     pal:{ S:'#5f7f2c', s:'#9cc24e', g:'#7cc65a', G:'#4f8f3a', y:'#e8d27a' } },
@@ -952,6 +955,7 @@ function update(dt){
     const c = Math.ceil(r.countdown);
     if (c !== r.lastCount && c > 0){ r.lastCount = c; sfx('beep'); }
     if (r.countdown <= 0){ sfx('go'); msg('GO!', '#e6f02a'); if (r.me.fx.fastStart){ r.e = capOf(r); msg('EXECUTIVE START!', '#7fb2ff'); }
+      if (r.me.fx.dealer){ r.boost.beet = 4 * boostMult(); msg('HOMEGROWN BEETROOT!', '#ff6fae'); }
       if (r.me.fx.startGel){ r.boost.gel = 4 * boostMult(); msg('GEL FROM THE BELT!', '#7fb2ff'); } }
     return;
   }
@@ -961,8 +965,8 @@ function update(dt){
   r.e -= r.e * drag * dt;
   if (r.finished) r.e *= Math.max(0, 1 - 2.5 * dt);
   let mult = 1;
-  if (r.boost.beet > 0) mult *= 1 + 0.08 * fastF(r.me);
-  if (r.boost.nomio > 0) mult *= 1 + 0.15 * fastF(r.me);
+  if (r.boost.beet > 0) mult *= 1 + 0.08 * fastF(r.me) * (r.me.fx.dealer ? 1.3 : 1);
+  if (r.boost.nomio > 0) mult *= 1 + 0.15 * fastF(r.me) * (r.me.fx.dealer ? 1.3 : 1);
   if (r.slow > 0) mult *= 0.55;
   if (r.boost.heart > 0) mult *= (r.heartMult || 1.1);
   if (r.lap === 2 && r.me.fx.lap2) mult *= r.me.fx.lap2;
@@ -992,11 +996,11 @@ function update(dt){
     if (it.h + 4 > foot && it.h - 4 < foot + 19){
       it.got = true; r.got++;
       const bm = boostMult();
-      if (it.type === 'beet') r.boost.beet = 6 * bm;
-      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm; r.e = Math.min(capOf(r) + 0.5, r.e + 0.8 * fastF(r.me)); }
+      if (it.type === 'beet') r.boost.beet = 6 * bm * (r.me.fx.dealer ? 1.3 : 1);
+      if (it.type === 'nomio'){ r.boost.nomio = 2.6 * bm * (r.me.fx.dealer ? 1.3 : 1); r.e = Math.min(capOf(r) + 0.5, r.e + 0.8 * fastF(r.me)); }
       if (it.type === 'gel') r.boost.gel = 7 * bm * (r.me.fx.gel || 1);
       if (it.type === 'heart'){ const L = r.me.love || 2; r.heartMult = 1 + 0.02 * L; r.boost.heart = 0.6 * L * bm; r.e = Math.min(CAP + (r.me.fx.cap || 0), r.e + 0.07 * L); r.hearts++; }   // LOVE stat sets the heart boost
-      msg(ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
+      msg(r.me.fx.dealer && (it.type === 'beet' || it.type === 'nomio') ? (Math.random() < 0.5 ? 'EPO?! NO, BEETROOT!' : 'DOPING CONTROL!') : ITEM_INFO[it.type].label, ITEM_INFO[it.type].col);
       burst(it.d * PXM, FOOT_ME - it.h, ITEM_INFO[it.type].col, 12, 70);
       sfx('item'); try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
     }
