@@ -1144,6 +1144,20 @@ function drawTrack(camX, time){
   for (const tc of TRACKS){
     const cx = Math.round(tc - camX), rx = 88, ry = 7, cy = 142;
     if (cx + rx + 70 < 0 || cx - rx - 20 > W) continue;
+    // hedgerow behind the track, next to the sign
+    { const hc = { spring:['#3f8a34','#5fae44','#9edc72'], summer:['#24672c','#33853a','#5aa84c'], autumn:['#6a6a24','#8a8a2e','#c4a83a'], winter:['#4a5a44','#5e6e56','#f4f8ff'] }[SEASON] || ['#24672c','#33853a','#5aa84c'];
+      const hx0 = cx - rx - 4, hx1 = cx + rx + 4, hTop = 127, hBot = 137;
+      for (let x = hx0; x < hx1; x++){
+        if (x < -1 || x > W) continue;
+        const bump = Math.round(1.5 + Math.sin((x + tc) * 0.45) * 1.2 + hash(Math.floor((x + tc) / 3)) * 1.2);
+        ctx.fillStyle = INK; ctx.fillRect(x, hTop + 2 - bump, 1, 1);
+        ctx.fillStyle = hc[1]; ctx.fillRect(x, hTop + 3 - bump, 1, hBot - hTop - 3 + bump);
+        const r = hash(x * 7 + tc);
+        ctx.fillStyle = r < 0.3 ? hc[0] : hc[2]; ctx.fillRect(x, hTop + 4 - bump + Math.floor(r * 6), 1, 1);
+        if (winter && r < 0.6){ ctx.fillStyle = '#f4f8ff'; ctx.fillRect(x, hTop + 3 - bump, 1, 1); }
+      }
+      ctx.fillStyle = hc[0]; ctx.fillRect(hx0, hBot - 1, hx1 - hx0, 1);
+    }
     // seen from the path: a straight red tartan track with white lane lines (snow on the edges in winter)
     const tx0 = cx - rx, tw = 2 * rx, t0 = 137, t1 = PATH_TOP - 4;
     ctx.fillStyle = '#9aa0a8'; ctx.fillRect(tx0, t0 - 1, tw, 1); ctx.fillRect(tx0, t1, tw, 1);   // kerbs
@@ -1173,9 +1187,9 @@ function drawTrack(camX, time){
     // club sign
     const sx = cx - 42, sy = 110, sw = 84;
     ctx.fillStyle = INK; ctx.fillRect(sx - 1, sy - 1, sw + 2, 12); ctx.fillRect(sx + 6, sy + 10, 2, cy - sy - 16); ctx.fillRect(sx + sw - 8, sy + 10, 2, cy - sy - 16);
-    ctx.fillStyle = '#c8202e'; ctx.fillRect(sx, sy, sw, 10);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(sx, sy, sw, 1);
-    txt('AV SPARTA', sx + sw / 2, sy + 1, '#ffffff', 'center', 8, null);
+    ctx.fillStyle = '#f5d01e'; ctx.fillRect(sx, sy, sw, 10);
+    ctx.fillStyle = '#fff3a0'; ctx.fillRect(sx, sy, sw, 1);
+    txt('AV SPARTA', sx + sw / 2, sy + 1, '#1b1420', 'center', 8, null);
   }
 }
 // black park railing with X crosses between the posts
