@@ -1057,7 +1057,7 @@ function drawLake(camX, time){
     }
     // three fountains (off when the lake is frozen)
     if (!frozen) [[0.48, 34], [0.66, 44], [0.84, 26]].forEach(([f, hgt], i) => {
-      const fx = Math.round(x0 + LAKE_W * f), base = bot - 6 + i % 2 * 2;
+      const fx = Math.round(x0 + LAKE_W * f), base = Math.round((top + bot) / 2) + 1;   // all three on the same water surface
       if (fx < -20 || fx > W + 20) return;
       const H2 = Math.round(hgt + Math.sin(time * 3 + i) * 2), tick = Math.floor(time * 12);
       // spray plume: thin jet at the bottom, wider and misty towards the top
