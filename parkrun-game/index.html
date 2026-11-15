@@ -1107,13 +1107,14 @@ function render(){
     if (Math.floor(t * 6 + it.ph) % 3 === 0){ ctx.fillStyle = '#fffbe0'; ctx.fillRect(x + 5, y - 6, 1, 1); ctx.fillRect(x - 6, y + 3, 1, 1); }
   }
   // rivals (back lane)
-  let lastLabel = -999;
+  let lastLabel = -999, lastW = 0;
   for (const v of r.rivals.slice().sort((a, b) => a.d - b.d)){
     const x = PX + (v.d - r.d) * PXM;
     if (x < -14 || x > W + 14) continue;
     const done = v.d >= TOTAL + 20;
     drawRunner(SPR[v.i], done ? 'wave' : FRAMES[Math.floor(v.anim) % 4], x, FOOT_RIV);
-    if (x - lastLabel > 42){ txt(RUNNERS[v.i].name.slice(0, 4), Math.round(x), FOOT_RIV - 30, '#f6efe1', 'center', 8); lastLabel = x; }
+    const label = RUNNERS[v.i].name, lw = label.length * 8;
+    if (x - lastLabel > (lastW + lw) / 2 + 6){ txt(label, Math.round(x), FOOT_RIV - 30, '#f6efe1', 'center', 8); lastLabel = x; lastW = lw; }
   }
   // you
   const fr = r.countdown > 0 ? 'stand' : r.air ? 'jump' : r.v < 0.4 ? 'wave' : FRAMES[Math.floor(r.anim) % 4];
