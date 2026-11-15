@@ -809,15 +809,15 @@ const SEASONS = {
     day: { ...SUMMER_DAY, sky:['#7cc6f2','#8ccdf2','#9fd5f1','#b4dcef','#c9e3ee','#dfe9ec','#f4e6ee'], h1:['#9ae08a','#3a9a44','#78cc6a'], h2:['#6ccc5e','#2e8a36','#52b44c'],
       back:['#5fcc52','#36a03c'], front:['#36a03c','#56c24c','#62cc56'], deco:['#ffffff','#ffe066','#f4a7c4','#ffffff'], decoRate:0.2, tuft:'#36a03c' },
     sun: { ...SUMMER_SUN, sky:['#7d8cc8','#9a9ccd','#b9a8d0','#d6b2cf','#efbccc','#f8cbc6','#fde0c8'], deco:['#ffe0ec','#ffe066','#f4a7c4'], decoRate:0.2 } },
-  summer: { name:'SUMMER', icon:'☀️', trees:'summer', weather:'sun',
-    day: { ...SUMMER_DAY, sky:['#1f7fe0','#2b8ae6','#3a96ec','#4ca3f0','#62b1f3','#7bc0f6','#96cff8'] },
+  summer: { name:'SUMMER', icon:'☀️', trees:'summer', weather:'sun', clearSky:true, titleDay:true,
+    day: { ...SUMMER_DAY, sky:['#0866d4','#0d71da','#157de0','#1f89e6','#2b96ec','#3aa3f1','#4cb0f5'] },
     sun: { ...SUMMER_SUN, sky:['#4a5ea8','#7068b0','#a06aa8','#d07090','#ef8a70','#f8a858','#ffc850'] } },
   autumn: { name:'AUTUMN', icon:'🍂', trees:'autumn', weather:'leaves', clouds:'grey',
     day: { sky:['#6a9bc8','#76a4cd','#84aed3','#93b8d8','#a3c2dc','#b5cce0','#c8d6e2'], h1:['#b0a24a','#5a5224','#928636'], h2:['#8f9a3e','#4a5622','#748030'],
       back:['#7a9c40','#4a6a28'], front:['#4a6a28','#6e9238','#789c40'], deco:['#c8321e','#e8702e','#f2b03a','#8a4a22'], decoRate:0.34, tuft:'#4a6a28', path:['#4a464f','#6c6872','#2e2b33'], pathLeaves:true },
     sun: { ...SUMMER_SUN, sky:['#585e8a','#76709a','#98809e','#b88e98','#d29a88','#e2aa74','#eabd6a'], h1:['#7a7040','#3e3a22','#6a6236'], h2:['#6a6a36','#34361e','#585a2e'], back:['#5e6a2e','#3e4a22'], front:['#3e4a22','#566426','#5e6a2e'],
       deco:['#c8321e','#e8702e','#f2b03a'], decoRate:0.34, tuft:'#3e4a22', pathLeaves:true } },
-  winter: { name:'WINTER', icon:'❄️', trees:'winter', weather:'snow', clouds:'snow', snowRoof:true, ice:true,
+  winter: { name:'WINTER', icon:'❄️', trees:'winter', weather:'snow', clouds:'snow', snowRoof:true, ice:true, fog:true,
     day: { sky:['#c9d3df','#d2dbe5','#dbe2ea','#e3e8ee','#eaeef2','#f0f2f5','#f6f7f9'], h1:['#eef3fa','#9aa8c0','#c8d4e6'], h2:['#dfe8f4','#8a98b2','#bccadf'],
       back:['#e6eef8','#a8b6cc'], front:['#a8b6cc','#e2eaf5','#eef3fa'], deco:['#c8d4e6','#b8c6dc'], decoRate:0.1, tuft:'#b8c6dc', path:['#56535e','#f4f8ff','#33303a'], snowPath:true },
     sun: { sky:['#9ea8c4','#b0b6cc','#c2c4d2','#d4d0d8','#e2dadc','#ece2de','#f4eae2'], h1:['#c8bcd4','#6a6488','#b4a8c6'], h2:['#b8acc8','#5a5478','#a498ba'],
@@ -947,7 +947,7 @@ function drawScene(camX, time, sunset){
   sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, i * bandH, W, bandH + 1); });
   if (sunset){ ctx.fillStyle = '#ffe08a'; pcirc(ctx, Math.round(W * 0.82), 112, 9, SEASON === 'winter' ? '#ffd9b0' : '#ffd36a'); }
   else if (S.weather === 'sun'){   // summer sun with pixel rays
-    const sx = Math.round(W * 0.2), sy = 24, ph = Math.floor(time * 2) % 2;
+    const sx = Math.round(W * 0.2), sy = G.screen === 'title' ? 74 : 24, ph = Math.floor(time * 2) % 2;
     ctx.fillStyle = '#fff3b0'; for (let a = 0; a < 8; a++){ const an = a * Math.PI / 4; ctx.fillRect(Math.round(sx + Math.cos(an) * (13 + ph)), Math.round(sy + Math.sin(an) * (13 + ph)), 2, 2); }
     pcirc(ctx, sx, sy, 9, '#ffe066'); pcirc(ctx, sx - 2, sy - 2, 5, '#fff3b0');
   }
@@ -955,7 +955,7 @@ function drawScene(camX, time, sunset){
   const cw = 150, coff = camX * 0.08 + time * 3;
   const clouds = S.clouds ? IMG.cloudSets[S.clouds][sunset ? 1 : 0] : sunset ? IMG.cloudsSun : IMG.clouds;
   for (let k = Math.floor(coff / cw) - 1; k <= Math.floor((coff + W) / cw) + 1; k++){
-    if (hash(k * 7 + 1) < 0.2) continue;
+    if (hash(k * 7 + 1) < 0.2 || (S.clearSky && !sunset)) continue;
     ctx.drawImage(clouds[k & 1], Math.round(k * cw - coff + hash(k * 3) * 70), Math.round(10 + hash(k * 5) * 46));
   }
   // flats on the horizon
@@ -973,6 +973,10 @@ function drawScene(camX, time, sunset){
     if (hh < 0.35) continue;
     const v = hh > 0.9 ? 3 : Math.floor(hash(k * 23) * 3);
     ctx.drawImage((IMG.treeSets && IMG.treeSets[S.trees] || IMG.trees)[v], Math.round(k * trw - troff + hash(k * 29) * 10), 140 - 44 + Math.floor(hash(k * 31) * 4));
+  }
+  if (S.fog){   // the far park fades into the fog
+    ctx.fillStyle = 'rgba(238,242,247,.55)'; ctx.fillRect(0, 0, W, 141);
+    ctx.fillStyle = 'rgba(238,242,247,.35)'; ctx.fillRect(0, 100, W, 41);
   }
   // back lawn
   ctx.fillStyle = P.back[0]; ctx.fillRect(0, 134, W, PATH_TOP - 134);
@@ -1023,6 +1027,15 @@ function drawScene(camX, time, sunset){
   }
   if (sunset){ ctx.fillStyle = 'rgba(110,40,90,.18)'; ctx.fillRect(0, 96, W, H - 96); }
   else if (SEASON === 'autumn'){ ctx.fillStyle = 'rgba(90,80,70,.08)'; ctx.fillRect(0, 0, W, H); }
+  if (S.fog){
+    ctx.fillStyle = 'rgba(240,244,248,.16)'; ctx.fillRect(0, 0, W, H);
+    // slow drifting fog banks low over the park
+    for (let k = 0; k < 4; k++){
+      const y = 104 + k * 11, len = 120 + k * 30, x0 = ((time * (4 + k * 2) + k * 97 - camX * 0.15) % (W + len) + W + len) % (W + len) - len;
+      ctx.fillStyle = 'rgba(246,248,251,.22)';
+      ctx.fillRect(Math.round(x0), y, len, 6); ctx.fillRect(Math.round(x0 + 8), y - 2, len - 16, 2); ctx.fillRect(Math.round(x0 + 8), y + 6, len - 16, 2);
+    }
+  }
 }
 
 /* ---------- text ---------- */
@@ -1316,11 +1329,11 @@ function renderScene(){
   ctx.imageSmoothingEnabled = false;
   const t = G.time;
   ctx.setTransform(1, 0, 0, 1, 0, 0); FLIP = false;
-  if (OFF > 0){ ctx.fillStyle = (G.screen === 'title' ? SZ().sun : SZ().day).sky[0]; ctx.fillRect(0, 0, W, OFF + 2); }
+  if (OFF > 0){ ctx.fillStyle = (G.screen === 'title' && !SZ().titleDay ? SZ().sun : SZ().day).sky[0]; ctx.fillRect(0, 0, W, OFF + 2); }
   ctx.setTransform(-1, 0, 0, 1, W, OFF); FLIP = true;
   if (G.screen === 'title'){
     const camX = -W / 2 + Math.sin(t * 0.25) * 24 + 10;
-    drawScene(camX, t, true);
+    drawScene(camX, t, !SZ().titleDay);   // summer: clear blue sky also on the start screen
     RUNNERS.forEach((r, i) => {
       if (i >= visibleCount()) return;
       const x = -58 + i * 26 - camX;
