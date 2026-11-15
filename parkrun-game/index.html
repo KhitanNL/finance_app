@@ -1144,19 +1144,14 @@ function drawTrack(camX, time){
   for (const tc of TRACKS){
     const cx = Math.round(tc - camX), rx = 88, ry = 7, cy = 142;
     if (cx + rx + 70 < 0 || cx - rx - 20 > W) continue;
-    const ell = (r, k) => Math.sqrt(Math.max(0, 1 - (r * r) / (k * k)));
-    // the oval: dark track, white lane lines, green infield (snow in winter)
-    for (let x = -rx; x <= rx; x++){
-      const X = cx + x; if (X < -1 || X > W) continue;
-      const h = Math.round(ry * ell(x, rx));
-      ctx.fillStyle = '#9aa0a8'; ctx.fillRect(X, cy - h - 1, 1, 2 * h + 3);                // light kerb around the track
-      ctx.fillStyle = '#26262c'; ctx.fillRect(X, cy - h, 1, 2 * h + 1);
-      for (const k of [0.86, 0.74]){ const hh = Math.round(ry * k * ell(x, rx * k)); if (Math.abs(x) < rx * 0.55){ ctx.fillStyle = '#d8dce2'; ctx.fillRect(X, cy - hh, 1, 1); ctx.fillRect(X, cy + hh, 1, 1); } }
-      const ki = 0.64, hi = Math.round(ry * ki * ell(x, rx * ki));
-      if (Math.abs(x) < rx * ki - 1 && hi > 0){ ctx.fillStyle = winter ? '#eef3fa' : (Math.floor((x + 200) / 10) % 2 ? '#3f9a3e' : '#47a845'); ctx.fillRect(X, cy - hi + 1, 1, 2 * hi - 1); }
-    }
-    // jump pits and the long straight on the near side
-    ctx.fillStyle = '#b07a5a'; ctx.fillRect(cx + 34, cy - 1, 9, 2); ctx.fillRect(cx - 44, cy - 1, 7, 2);
+    // seen from the path: a straight red tartan track with white lane lines (snow on the edges in winter)
+    const tx0 = cx - rx, tw = 2 * rx, t0 = 137, t1 = PATH_TOP - 4;
+    ctx.fillStyle = '#9aa0a8'; ctx.fillRect(tx0, t0 - 1, tw, 1); ctx.fillRect(tx0, t1, tw, 1);   // kerbs
+    ctx.fillStyle = '#c4523c'; ctx.fillRect(tx0, t0, tw, t1 - t0);
+    ctx.fillStyle = '#a8402f'; for (let x = tx0; x < tx0 + tw; x += 5) ctx.fillRect(x, t0 + 1 + (x % 3), 1, 1);
+    ctx.fillStyle = '#f2ece4'; for (let y = t0 + 2; y < t1; y += 2) ctx.fillRect(tx0, y, tw, 1);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(tx0 + 12, t0, 1, t1 - t0); ctx.fillRect(tx0 + tw - 14, t0, 1, t1 - t0);   // start and finish lines
+    if (winter){ ctx.fillStyle = '#f4f8ff'; for (let k = 0; k < 30; k++) ctx.fillRect(tx0 + Math.floor(hash(k * 7 + tc) * tw), k % 2 ? t0 : t1 - 1, 3, 1); }
     // fence on the path side
     ctx.fillStyle = INK; ctx.fillRect(cx - rx - 6, PATH_TOP - 5, 2 * rx + 12, 1);
     for (let x = cx - rx - 6; x <= cx + rx + 6; x += 10) ctx.fillRect(x, PATH_TOP - 5, 1, 4);
