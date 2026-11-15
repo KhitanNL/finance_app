@@ -1098,6 +1098,45 @@ function drawLake(camX, time){
     if (frozen){ ctx.fillStyle = '#f4f8ff'; ctx.fillRect(bx, PATH_TOP - 9, 18, 1); }
   }
 }
+/* ---------- landmark: the outdoor gym at 4K (same spot at 1.5K on lap 1) ---------- */
+const GYMS = [1500, 4000].map(m => m * PXM + 14);
+function drawGym(camX, time){
+  const winter = !!SZ().ice;
+  for (const gx of GYMS){
+    const x0 = Math.round(gx - camX);
+    if (x0 < -150 || x0 > W + 40) continue;
+    const fy = 136, fh = 11, fw = 112;
+    // blue rubber floor, seen at an angle, with a grey border and white markings
+    for (let r = 0; r < fh; r++){
+      const sh = Math.round((fh - r) * 0.9);
+      ctx.fillStyle = r === 0 || r === fh - 1 ? '#9aa0a8' : '#2f6fd6';
+      ctx.fillRect(x0 + sh, fy + r, fw, 1);
+      ctx.fillStyle = '#9aa0a8'; ctx.fillRect(x0 + sh, fy + r, 1, 1); ctx.fillRect(x0 + sh + fw - 1, fy + r, 1, 1);
+    }
+    ctx.fillStyle = '#ffffff';
+    [[14, 6], [24, 7], [34, 6]].forEach(([dx, r]) => ctx.fillRect(x0 + dx, fy + r, 5, 1));       // round marks
+    [[70, 8], [80, 8], [92, 7]].forEach(([dx, r]) => ctx.fillRect(x0 + dx, fy + r, 4, 1));       // lines
+    if (winter){ for (let k = 0; k < 26; k++){ ctx.fillStyle = '#f4f8ff'; ctx.fillRect(x0 + 6 + Math.floor(hash(k * 7 + gx) * (fw - 6)), fy + 1 + Math.floor(hash(k * 13 + gx) * (fh - 2)), 2, 1); } }
+    // concrete blocks
+    [[60, fy + 4], [96, fy + 2]].forEach(([dx, y]) => { ctx.fillStyle = INK; ctx.fillRect(x0 + dx - 1, y - 6, 14, 8); ctx.fillStyle = '#a8adb4'; ctx.fillRect(x0 + dx, y - 5, 12, 6); ctx.fillStyle = '#c8ccd2'; ctx.fillRect(x0 + dx, y - 5, 12, 1); });
+    // steel frame: grey posts with lime green bars
+    const posts = [34, 44, 54, 66, 80], top = fy - 30;
+    const bar = (a, b, y) => { ctx.fillStyle = INK; ctx.fillRect(x0 + a, y - 1, b - a + 2, 3); ctx.fillStyle = '#b6e02a'; ctx.fillRect(x0 + a, y, b - a + 2, 1); };
+    bar(34, 54, top + 6); bar(54, 80, top + 2); bar(66, 80, top + 14); bar(34, 44, top + 18);
+    ctx.fillStyle = INK; ctx.fillRect(x0 + 14, fy - 10, 22, 2); ctx.fillStyle = '#b6e02a'; ctx.fillRect(x0 + 14, fy - 10, 22, 1);   // low parallel bars
+    ctx.fillStyle = INK; ctx.fillRect(x0 + 15, fy - 10, 1, 10); ctx.fillRect(x0 + 34, fy - 10, 1, 10);
+    posts.forEach((dx, i) => { const h = i === 3 || i === 4 ? 32 : 28; ctx.fillStyle = INK; ctx.fillRect(x0 + dx - 1, fy + 2 - h, 4, h); ctx.fillStyle = '#c4c8d0'; ctx.fillRect(x0 + dx, fy + 2 - h, 2, h); ctx.fillStyle = '#8a9098'; ctx.fillRect(x0 + dx + 1, fy + 2 - h, 1, h); if (winter){ ctx.fillStyle = '#ffffff'; ctx.fillRect(x0 + dx - 1, fy + 1 - h, 4, 1); } });
+    // people working out: pull-ups, squats on the block, stretching
+    const F = IMG.fans; if (!F) continue;
+    const up = Math.round((Math.sin(time * 3) + 1) * 2.5);
+    ctx.drawImage(F[2].jump, x0 + 61, top + 3 - up);                                              // pull-up
+    ctx.fillStyle = INK; ctx.fillRect(x0 + 62, top + 2 - up, 1, 3); ctx.fillRect(x0 + 71, top + 2 - up, 1, 3);
+    const sq = Math.round((Math.sin(time * 2.4 + 1) + 1) * 1.5);
+    ctx.drawImage(F[0].stand, x0 + 96, fy - 26 + sq);                                              // squats
+    ctx.drawImage(F[4][Math.floor(time * 2) % 2 ? 'wave' : 'stand'], x0 + 20, fy - 18);           // stretching
+    ctx.drawImage(F[1][['a', 'b', 'c', 'b'][Math.floor(time * 6) % 4]], x0 + 40, fy - 16);        // warming up on the spot
+  }
+}
 // black park railing with X crosses between the posts
 function railing(x0, x1, base){
   ctx.fillStyle = INK;
@@ -1149,12 +1188,13 @@ function drawScene(camX, time, sunset){
   ctx.fillStyle = P.back[0]; ctx.fillRect(0, 134, W, PATH_TOP - 134);
   ctx.fillStyle = P.back[1]; ctx.fillRect(0, 134, W, 1);
   drawLake(camX, time);
+  drawGym(camX, time);
   drawLandmark(camX, 'trees');
   drawLandmark(camX, 'back');
   // props that live in the world (1:1 with the path)
   for (let k = Math.floor((camX - 200) / 150); k <= Math.floor((camX + W + 200) / 150); k++){
     const lx = k * 150 + 60;
-    if (BLD_X.some(b => Math.abs(lx - b) < 130)) continue;
+    if (BLD_X.some(b => Math.abs(lx - b) < 130) || GYMS.some(g => lx > g - 20 && lx < g + 140)) continue;
     if (hash(k * 41) < 0.55) drawLamp(Math.round(lx - camX));
   }
   BLD_X.forEach((bx, i) => {
