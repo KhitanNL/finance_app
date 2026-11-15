@@ -377,8 +377,8 @@ const RUNNERS = [
     perk:'Executive start: leaves the line at full speed. Then the meetings catch up with him.', spd:2, st:4, love:2, jmp:3, target:1230, fx:{ fastStart:true }, head:'beard',
     pal:{ h:'#b8763c', r:'#a8683a', s:'#f0c09a', t:'#3a3a44', n:'#1e2a4a', p:'#1b1420', k:'#2a2d3a' } },
   { id:'blake', shouts:['GO DR BLAKE!', 'CRACK!', 'DOCTOR!', 'RE-ALIGN!'], name:'DR BLAKE', full:'Dr Blake', photo:'img/blake.jpg', tag:'The running re-aligner.', known:'Chiropractor by day, fast by Saturday',
-    perk:'Spinal adjustment: re-aligns at every km sign for a speed burst. Geese never knock him off balance.', spd:4, st:2, love:2, jmp:3, target:1065, fx:{ align:true }, head:'glasses',
-    pal:{ h:'#6a4426', s:'#eab48c', q:'#1b1420', L:'#cfeeff', t:'#ecebe6', n:'#3ec6ea', p:'#1f5f78', k:'#f0a020' } },
+    perk:'Spinal adjustment: re-aligns at every km sign for a speed burst. Geese never knock him off balance.', spd:4, st:2, love:2, jmp:3, target:1065, fx:{ align:true }, head:'glasses', coat:true,
+    pal:{ h:'#6a4426', s:'#eab48c', q:'#1b1420', L:'#cfeeff', t:'#f4f3ee', c:'#f4f3ee', n:'#d2d0c8', p:'#f4f3ee', u:'#2f3448', k:'#5a3a22' } },
   { id:'rodi', shouts:['GO RODY!', 'DIESEL!', 'SLOW AND STEADY!', 'HERE COMES RODY!'], name:'RODY', full:'Rody', emoji:'🐢', photo:'', tag:'Mystery animal. A true diesel.', known:'Slow starter, unstoppable finisher',
     perk:'Diesel engine: starts way behind but gets faster every kilometre and finishes faster than anyone. Puddles and geese never slow a turtle.', spd:1, st:5, love:2, jmp:1, target:1110, fx:{ diesel:true, immune:true }, body:'turtle',
     pal:{ S:'#5f7f2c', s:'#9cc24e', g:'#7cc65a', G:'#4f8f3a', y:'#e8d27a' } },
@@ -531,8 +531,18 @@ function runnerSprites(r){
     return { stand:sprite(turtleRows('stand'), tp), a:sprite(turtleRows('a'), tp), b:sprite(turtleRows('b'), tp), c:sprite(turtleRows('c'), tp), jump:sprite(turtleRows('jump'), tp), wave:sprite(turtleRows('stand'), tp) };
   }
   const hd = HEADS[r.head || 'std'];
-  const mkF = body => sprite(hd.concat(body), pal);
-  return { stand:mkF(B_STAND), a:mkF(B_A), b:mkF(B_B), c:mkF(B_C), jump:mkF(B_J), wave:sprite(hd.slice(0,5).concat(B_WAVE), pal) };
+  // Lab coat outfit: white sleeves, coat over the hips with tails behind, dark trousers
+  const coat = rows => !r.coat ? rows : rows.map((row, i) => {
+    let a = row.split('');
+    if (i >= 6 && i <= 10) a = a.map(ch => ch === 's' ? 'c' : ch);
+    if (i >= 11 && i <= 12) a = a.map(ch => (ch === 'p' || ch === 'G' || ch === 'Y') ? 'c' : ch);
+    if (i >= 13) a = a.map(ch => (ch === 's' || ch === 'p') ? 'u' : ch);
+    if (i >= 8 && i <= 13 && a[3] === '.' && a.slice(4, 9).some(ch => ch !== '.')) a[3] = 'c';
+    if (i >= 10 && i <= 12 && a[2] === '.' && a[3] === 'c') a[2] = 'c';
+    return a.join('');
+  });
+  const mkF = body => sprite(coat(hd.concat(body)), pal);
+  return { stand:mkF(B_STAND), a:mkF(B_A), b:mkF(B_B), c:mkF(B_C), jump:mkF(B_J), wave:sprite(coat(hd.slice(0,5).concat(B_WAVE)), pal) };
 }
 function buildTree(v){
   const c = mk(34, 44), g = c.getContext('2d');
