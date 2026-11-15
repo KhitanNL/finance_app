@@ -1,0 +1,14 @@
+{
+  "name": "Wolfpack Run",
+  "short_name": "Wolfpack Run",
+  "description": "8-bit Zuiderpark 5K for the Wolf Pack",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#24212a",
+  "theme_color": "#24212a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
