@@ -818,19 +818,21 @@ const SUMMER_SUN = { sky:SKY_SUN, h1:['#5a8a6a','#2f4a3a','#4a7a5a'], h2:['#3f7a
   front:['#245a2a','#36763a','#3d7f3a'], deco:['#e8902e','#f2c14e'], decoRate:0.14, tuft:'#245a2a', path:['#4a464f','#6c6872','#2e2b33'] };
 const SEASONS = {
   spring: { name:'SPRING', icon:'🌸', trees:'spring', weather:'petals',
-    day: { ...SUMMER_DAY, sky:['#5cb6f4','#68bdf5','#76c5f6','#86cdf7','#98d5f8','#acdef9','#c2e8fb'], h1:['#9ae08a','#3a9a44','#78cc6a'], h2:['#6ccc5e','#2e8a36','#52b44c'],
+    day: { ...SUMMER_DAY, sky:['#7cc6f2','#8ccdf2','#9fd5f1','#b4dcef','#c9e3ee','#dfe9ec','#f4e6ee'], h1:['#9ae08a','#3a9a44','#78cc6a'], h2:['#6ccc5e','#2e8a36','#52b44c'],
       back:['#5fcc52','#36a03c'], front:['#36a03c','#56c24c','#62cc56'], deco:['#ffffff','#ffe066','#f4a7c4','#ffffff'], decoRate:0.2, tuft:'#36a03c' },
-    sun: { ...SUMMER_SUN, deco:['#ffe0ec','#ffe066','#f4a7c4'], decoRate:0.2 } },
-  summer: { name:'SUMMER', icon:'☀️', trees:'summer', weather:'sun', day: SUMMER_DAY, sun: SUMMER_SUN },
+    sun: { ...SUMMER_SUN, sky:['#7d8cc8','#9a9ccd','#b9a8d0','#d6b2cf','#efbccc','#f8cbc6','#fde0c8'], deco:['#ffe0ec','#ffe066','#f4a7c4'], decoRate:0.2 } },
+  summer: { name:'SUMMER', icon:'☀️', trees:'summer', weather:'sun',
+    day: { ...SUMMER_DAY, sky:['#1f7fe0','#2b8ae6','#3a96ec','#4ca3f0','#62b1f3','#7bc0f6','#96cff8'] },
+    sun: { ...SUMMER_SUN, sky:['#4a5ea8','#7068b0','#a06aa8','#d07090','#ef8a70','#f8a858','#ffc850'] } },
   autumn: { name:'AUTUMN', icon:'🍂', trees:'autumn', weather:'leaves', clouds:'grey',
     day: { sky:['#6a9bc8','#76a4cd','#84aed3','#93b8d8','#a3c2dc','#b5cce0','#c8d6e2'], h1:['#b0a24a','#5a5224','#928636'], h2:['#8f9a3e','#4a5622','#748030'],
       back:['#7a9c40','#4a6a28'], front:['#4a6a28','#6e9238','#789c40'], deco:['#c8321e','#e8702e','#f2b03a','#8a4a22'], decoRate:0.34, tuft:'#4a6a28', path:['#4a464f','#6c6872','#2e2b33'], pathLeaves:true },
-    sun: { ...SUMMER_SUN, h1:['#7a7040','#3e3a22','#6a6236'], h2:['#6a6a36','#34361e','#585a2e'], back:['#5e6a2e','#3e4a22'], front:['#3e4a22','#566426','#5e6a2e'],
+    sun: { ...SUMMER_SUN, sky:['#585e8a','#76709a','#98809e','#b88e98','#d29a88','#e2aa74','#eabd6a'], h1:['#7a7040','#3e3a22','#6a6236'], h2:['#6a6a36','#34361e','#585a2e'], back:['#5e6a2e','#3e4a22'], front:['#3e4a22','#566426','#5e6a2e'],
       deco:['#c8321e','#e8702e','#f2b03a'], decoRate:0.34, tuft:'#3e4a22', pathLeaves:true } },
   winter: { name:'WINTER', icon:'❄️', trees:'winter', weather:'snow', clouds:'snow', snowRoof:true, ice:true,
-    day: { sky:['#8fa9c8','#9ab2cf','#a6bbd5','#b2c4da','#bfcde0','#ccd7e6','#d9e1ec'], h1:['#eef3fa','#9aa8c0','#c8d4e6'], h2:['#dfe8f4','#8a98b2','#bccadf'],
+    day: { sky:['#c9d3df','#d2dbe5','#dbe2ea','#e3e8ee','#eaeef2','#f0f2f5','#f6f7f9'], h1:['#eef3fa','#9aa8c0','#c8d4e6'], h2:['#dfe8f4','#8a98b2','#bccadf'],
       back:['#e6eef8','#a8b6cc'], front:['#a8b6cc','#e2eaf5','#eef3fa'], deco:['#c8d4e6','#b8c6dc'], decoRate:0.1, tuft:'#b8c6dc', path:['#56535e','#f4f8ff','#33303a'], snowPath:true },
-    sun: { sky:['#4a4f7a','#62668f','#7d7ea3','#9a93b2','#b8a6bd','#d4b8c0','#ead0c4'], h1:['#c8bcd4','#6a6488','#b4a8c6'], h2:['#b8acc8','#5a5478','#a498ba'],
+    sun: { sky:['#9ea8c4','#b0b6cc','#c2c4d2','#d4d0d8','#e2dadc','#ece2de','#f4eae2'], h1:['#c8bcd4','#6a6488','#b4a8c6'], h2:['#b8acc8','#5a5478','#a498ba'],
       back:['#c4b8d2','#7a7298'], front:['#7a7298','#bcb0cc','#c8bcd6'], deco:['#a89cbe'], decoRate:0.1, tuft:'#a89cbe', path:['#4e4b58','#e8e0f0','#2e2b36'], snowPath:true } },
 };
 const SEASON_KEYS = ['spring', 'summer', 'autumn', 'winter'];
