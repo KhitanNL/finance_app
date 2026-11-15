@@ -321,7 +321,7 @@ p{margin:0;max-width:60ch}
     <section id="scr-title">
       <p class="eyebrow">ZUIDERPARK · DEN HAAG · SAT 9:00</p>
       <h1>WOLFPACK <span class="chrome">RUN</span></h1>
-      <div class="clubbar" id="clubBar"><span class="club-dot" id="clubDot"></span><span><b id="clubName">WOLFPACK ZUIDERPARK</b><small id="clubSub">Zuiderpark, Den Haag</small></span><button class="btn alt" id="clubBtn" type="button">CLUB</button></div>
+      <div class="clubbar" id="clubBar"><span class="club-dot" id="clubDot"></span><span><b id="clubName">WOLFPACK ZUIDERPARK</b><small id="clubSub">Zuiderpark, Den Haag</small></span><button class="btn alt" id="lbBtn" type="button">RANKS</button><button class="btn alt" id="clubBtn" type="button">CLUB</button></div>
       <p class="lead">Two laps of 2.5K around Zuiderpark. Start and finish at the shimmering hall.</p>
       <p class="muted">Mash RUN to go faster. Hit JUMP to grab boosts floating over the path:</p>
       <ul class="legend" id="legend"></ul>
@@ -364,7 +364,7 @@ p{margin:0;max-width:60ch}
       <div class="res-time" id="resTime">17:48</div>
       <dl class="res-grid" id="resGrid"></dl>
       <ol class="board" id="board"></ol>
-      <div id="clubBoardWrap" hidden><h2 class="board-h">CLUB LEADERBOARD TODAY</h2><ol class="board" id="clubBoard"></ol><p class="muted" id="clubBoardNote"></p></div>
+      <div id="clubBoardWrap" hidden><h2 class="board-h">CLUB LEADERBOARD TODAY</h2><ol class="board" id="clubBoard"></ol><h2 class="board-h">CLUB RECORDS (ALL TIME)</h2><ol class="board" id="clubBoardAll"></ol><p class="muted" id="clubBoardNote"></p></div>
       <div class="row">
         <button class="btn hot" id="againBtn" type="button">RUN AGAIN</button>
         <button class="btn alt" id="changeBtn" type="button">RUNNERS</button>
@@ -1300,7 +1300,9 @@ async function submitResult(r, t){
     const s = await apiCall('/api/results', { method:'POST', json:{ club: clubSlug, runner_id: r.me.dbId, by_player_id: me && me.id, mode:'classic', time_s: Math.round(t), taps: r.taps, max_cad: r.maxCad } });
     const lb = await apiCall(`/api/clubs/${clubSlug}/leaderboard?mode=classic`);
     if (!lb.ok) return;
+    if (s.ok && (!r.me.clubBest || t < r.me.clubBest)) r.me.clubBest = Math.round(t);
     $('#clubBoard').innerHTML = boardHtml(lb.data.today, r.me.name);
+    $('#clubBoardAll').innerHTML = boardHtml((lb.data.all || []).slice(0, 5), r.me.name);
     $('#clubBoardNote').textContent = s.ok ? 'Your time is saved for ' + NET.club.name + '.' : (s.data.error || 'This time was not saved.');
     box.hidden = false;
   } catch(e){}
@@ -1327,8 +1329,9 @@ function legend(){
     li.appendChild(document.createTextNode(ITEM_INFO[k].name + ': ' + ITEM_INFO[k].desc));
     ul.appendChild(li);
   }
-  const best = RUNNERS.filter(r => pbs[r.id]).map(r => r.name + ' ' + fmt(pbs[r.id]));
-  $('#titleBest').textContent = best.length ? 'Pack PBs on this phone: ' + best.join(' · ') : 'Goal for the pack: sub 18:00.';
+  const online = typeof NET !== 'undefined' && NET.online;
+  const best = RUNNERS.filter(r => recordOf(r)).sort((a, b) => recordOf(a) - recordOf(b)).slice(0, 3).map(r => r.name + ' ' + fmt(recordOf(r)));
+  $('#titleBest').textContent = best.length ? (online ? 'Club records: ' : 'Best times on this phone: ') + best.join(' · ') : 'Goal for the pack: sub 18:00.';
 }
 
 function renderCards(){
@@ -1363,7 +1366,7 @@ function renderInfo(){
     r.story ? '<button class="mini" type="button" data-ra="report">REPORT STORY</button>' : ''].join('');
   $('#runnerInfo').innerHTML = `<canvas width="14" height="20" aria-hidden="true"></canvas><h3>${esc(r.name)}</h3><p class="known">${esc(r.known)}</p>
     <dl class="stats"><dt>FAST TWITCH</dt><dd>${pips(r.spd)}</dd><dt>SLOW TWITCH</dt><dd>${pips(r.st)}</dd><dt>LOVE</dt><dd>${pips(r.love)}</dd><dt>JUMP</dt><dd>${pips(r.jmp)}</dd></dl>
-    ${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">GAME PB ${pbs[r.id] ? fmt(pbs[r.id]) : '--:--'}</p>
+    ${r.story ? '<p class="story">' + esc(r.story) + '</p>' : ''}<p class="perk">${esc(r.perk)}</p><p class="pb">${shared(r) ? 'CLUB RECORD' : 'GAME PB'} ${recordOf(r) ? fmt(recordOf(r)) : '--:--'}</p>
     ${acts ? '<div class="mini-actions">' + acts + '</div>' : ''}`;
   $('#runnerInfo canvas').getContext('2d').drawImage(SPR[i].stand, 0, 0);
 }
@@ -1488,15 +1491,15 @@ function showResults(){
   const rows = [{ name: me.name, t: myT, me: true, id: me.id }].concat(r.rivals.map(v => ({ name: RUNNERS[v.i].name, t: v.T, id: RUNNERS[v.i].id })));
   rows.sort((a, b) => a.t - b.t);
   const pos = rows.findIndex(x => x.me) + 1;
-  const prev = pbs[me.id];
+  const prev = recordOf(me), online = shared(me);
   const isPB = !prev || myT < prev;
-  if (isPB){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }
+  if (!pbs[me.id] || myT < pbs[me.id]){ pbs[me.id] = Math.round(myT); store.set('pbs', pbs); }   // local fallback for offline play
   $('#resName').textContent = me.full.toUpperCase() + ' · ' + (pos === 1 ? '1ST PLACE' : 'P' + pos + ' OF ' + rows.length);
   $('#resPhoto').hidden = !!me.emoji; $('#resEmoji').hidden = !me.emoji;
   if (me.emoji) $('#resEmoji').textContent = me.emoji; else { $('#resPhoto').src = me.photo; $('#resPhoto').alt = me.full; }
   $('#resTime').textContent = fmt(myT);
   const badges = [];
-  if (isPB) badges.push(['NEW PB!', 'pb']);
+  if (isPB) badges.push([online ? 'NEW CLUB RECORD!' : 'NEW PB!', 'pb']);
   if (myT < 1020) badges.push(['SUB 17!', '']);
   else if (myT < 1080) badges.push(['SUB 18!', '']);
   if (pos === 1) badges.push(['PACK LEADER', '']);
@@ -1508,7 +1511,7 @@ function showResults(){
   const stats = [
     ['Distance', '5.00 km'], ['Avg pace', fmt(myT / 5) + ' /km'], ['Position', pos + ' / ' + rows.length],
     ['Lap 1', fmt(r.split)], ['Lap 2', fmt(lap2)], ['Boosts', r.got + ' / ' + r.items.length],
-    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], ['Previous PB', prev ? fmt(prev) : 'none'],
+    ['Taps', String(r.taps)], ...(!r.me.fx.fans ? [['Hearts', String(r.hearts)]] : []), ...(r.me.fx.fans ? [['Viral moments', String(r.hearts)]] : []), ['Top cadence', r.maxCad + ' /s'], [online ? 'Club record before' : 'Previous PB', prev ? fmt(prev) : 'none'],
   ];
   $('#resGrid').innerHTML = stats.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   $('#board').innerHTML = rows.map((x, i) => `<li class="${x.me ? 'me' : ''}"><span class="pos">${i + 1}</span><span>${esc(x.name)}</span><span class="t">${fmt(x.t)}</span></li>`).join('');
@@ -1523,6 +1526,8 @@ function showResults(){
 /* ---------- clubs + online features (offline-first: without the API the game plays with the built-in runners) ---------- */
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const DEFAULT_CLUB = 'wolfpack-zuiderpark';
+const shared = r => NET.online && r && r.dbId;                    // online: times are shared with the club
+const recordOf = r => shared(r) ? (r.clubBest || null) : (pbs[r.id] || null);
 const NET = { online:false, club:null, captain:false, players:[] };
 const urlClub = (location.pathname.match(/^\/c\/([a-z0-9-]+)/) || [])[1] || null;
 let clubSlug = urlClub || store.get('club', DEFAULT_CLUB) || DEFAULT_CLUB;
@@ -1578,7 +1583,7 @@ function playerRunner(p){
   const nick = String(p.nickname || p.name).toUpperCase().slice(0, 12);
   const known = [p.pb5k && '5K ' + fmt(p.pb5k), p.pb10k && '10K ' + fmt(p.pb10k), p.pbmar && 'Marathon ' + fmtLong(p.pbmar)].filter(Boolean).join(' · ') || 'Club runner';
   const kit = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : KIT[p.id % KIT.length];
-  return { id:'p' + p.id, dbId:p.id, name:nick, full:p.name, photo:p.photo || '', emoji: p.photo ? undefined : '🏃', poster: p.photo || undefined,
+  return { id:'p' + p.id, dbId:p.id, clubBest: p.best || null, name:nick, full:p.name, photo:p.photo || '', emoji: p.photo ? undefined : '🏃', poster: p.photo || undefined,
     tag: p.tagline || 'Club runner.', known, story: p.story || '', perk: 'Club runner: no special perk, just honest running.',
     spd:p.stats.fast, st:p.stats.slow, love:p.stats.love, jmp:p.stats.jump, target: p.pb5k || 1200, fx:{},
     shouts:['GO ' + nick + '!', 'KOM OP ' + nick + '!'], pal:{ h:'#2a1a12', s:'#d9a77a', t:kit, n:'#f6efe1', p:'#1b1420', k:'#f4f4f4' } };
@@ -1588,7 +1593,7 @@ function applyClub(data){
   const wolf = data.club.slug === DEFAULT_CLUB, list = [];
   if (wolf){
     const byLegacy = Object.fromEntries(NET.players.filter(p => p.legacy_id).map(p => [p.legacy_id, p]));
-    for (const b of BUILTIN_RUNNERS){ const p = byLegacy[b.id]; if (p){ b.dbId = p.id; if (b.id !== 'draakie') list.push(b); } }
+    for (const b of BUILTIN_RUNNERS){ const p = byLegacy[b.id]; if (p){ b.dbId = p.id; b.clubBest = p.best || null; if (b.id !== 'draakie') list.push(b); } }
     list.push(...NET.players.filter(p => !p.legacy_id).map(playerRunner));
     const dr = BUILTIN_RUNNERS.find(b => b.id === 'draakie'); if (dr && byLegacy.draakie) list.push(dr);
   } else list.push(...NET.players.map(playerRunner));
@@ -1805,6 +1810,7 @@ async function cropPhoto(file){
   } finally { URL.revokeObjectURL(url); }
 }
 $('#clubBtn').addEventListener('click', () => { audioInit(); openClub('home'); });
+$('#lbBtn').addEventListener('click', () => { audioInit(); if (NET.online) openClub('board'); else openClub('home'); });
 $('#clubClose').addEventListener('click', closeClub);
 $('#clubModal').addEventListener('click', e => {
   if (e.target.id === 'clubModal') return closeClub();

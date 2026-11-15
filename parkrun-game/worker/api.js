@@ -160,8 +160,11 @@ async function getClub(req, env, slug) {
   const club = await clubBySlug(env, slug);
   if (!club) return bad('Club not found', 404);
   const { results } = await env.DB.prepare(`SELECT ${PUBLIC_PLAYER} FROM players WHERE club_id = ? AND removed = 0 AND banned = 0 ORDER BY id`).bind(club.id).all();
+  // Shared club records: best Classic time per runner, from everyone in the club.
+  const bests = await env.DB.prepare(`SELECT player_id, MIN(time_s) AS best FROM results WHERE club_id = ? AND mode = 'classic' GROUP BY player_id`).bind(club.id).all();
+  const best = Object.fromEntries(bests.results.map(b => [b.player_id, b.best]));
   return json({ club: { slug: club.slug, name: club.name, course: club.course, color: club.color, captain: club.captain_name, join_code: club.join_code },
-    captain: await isCaptain(req, env, club), players: results.map(playerOut) });
+    captain: await isCaptain(req, env, club), players: results.map(p => ({ ...playerOut(p), best: best[p.id] || null })) });
 }
 
 async function createClub(req, env) {
