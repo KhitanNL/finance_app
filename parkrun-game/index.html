@@ -602,7 +602,7 @@ function runnerSprites(r){
   const mkF = body => sprite(coat(hd.concat(body)), pal);
   const set = { stand:mkF(B_STAND), a:mkF(B_A), b:mkF(B_B), c:mkF(B_C), jump:mkF(B_J), wave:sprite(coat(hd.slice(0,5).concat(B_WAVE)), pal) };
   if (r.cross) for (const k in set){   // small cross on the chest (sprite rows 8-10, column 5)
-    const g = set[k].getContext('2d'); g.fillStyle = '#f2d27a';
+    const g = set[k].getContext('2d'); g.fillStyle = '#dcdde6';
     g.fillRect(6, 9, 1, 3); g.fillRect(5, 10, 3, 1);
   }
   return set;
