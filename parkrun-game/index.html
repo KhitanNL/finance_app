@@ -942,8 +942,8 @@ function drawCheck(x){
   }
 }
 
-/* ---------- landmark: the small bridge after 1K with the tall swamp cypress trees (both laps) ---------- */
-const BRIDGES = [1100, 3600].map(m => m * PXM), BRIDGE_HALF = 40 * PXM;
+/* ---------- landmark: the small bridge at 750 m with the tall swamp cypress trees (every lap) ---------- */
+const BRIDGES = [750, 750 + LAP].map(m => m * PXM), BRIDGE_HALF = 40 * PXM;
 const TALL_TREES = [-95, -62, -30, 58, 88, 122].map((o, i) => ({ o, h: 96 + (i * 37 % 26), v: i }));
 // tall feathery conifer (like a swamp cypress): green in spring and summer, rust orange in autumn, bare in winter
 function buildTallTree(season, h, v){
@@ -1016,8 +1016,8 @@ function drawLandmark(camX, part){
     }
   }
 }
-/* ---------- landmark: the lake with three fountains after 2K (both laps) ---------- */
-const LAKES = [2090, 4590].map(m => m * PXM), LAKE_W = 270 * PXM;
+/* ---------- landmark: the lake with three fountains at 1K (every lap) ---------- */
+const LAKES = [1000, 1000 + LAP].map(m => m * PXM), LAKE_W = 270 * PXM;
 function buildWillow(season, v){
   const w = 46, h = 50, c = mk(w, h), g = c.getContext('2d');
   const cols = { spring:['#5f9a3a','#8cc65a','#c4ec8a'], summer:['#3f7a34','#5e9e44','#94c86a'], autumn:['#8a7a2a','#c4a83a','#e8d06a'], winter:['#6a5a3a','#8a7448','#f4f8ff'] }[season];
@@ -1098,8 +1098,8 @@ function drawLake(camX, time){
     if (frozen){ ctx.fillStyle = '#f4f8ff'; ctx.fillRect(bx, PATH_TOP - 9, 18, 1); }
   }
 }
-/* ---------- landmark: the outdoor gym at 4K (same spot at 1.5K on lap 1) ---------- */
-const GYMS = [1500, 4000].map(m => m * PXM + 14);
+/* ---------- landmark: the outdoor gym at 2K, the last landmark of the lap ---------- */
+const GYMS = [2000, 2000 + LAP].map(m => m * PXM + 14);
 function drawGym(camX, time){
   const winter = !!SZ().ice;
   for (const gx of GYMS){
