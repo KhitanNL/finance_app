@@ -2547,7 +2547,7 @@ const CLUB_VIEWS = {
         <a class="btn alt" href="${esc(waLink(text))}" target="_blank" rel="noopener">${claim || other ? 'SEND ON WHATSAPP' : 'SEND TO MYSELF'}</a></div>
       <p class="note" id="recMsg" aria-live="polite"></p>
       <p class="note">${claim ? 'It works once. A new code replaces the old one.' : 'Making a new code later stops this one from working.'}</p>
-      <div class="actions">${info.welcome ? `<button class="btn hot" type="button" data-cv="go">CHOOSE YOUR RUNNER</button>` : '<button class="btn hot" type="button" id="codeDone">DONE</button>'}</div>`;
+      <div class="actions">${info.welcome ? (afterName ? `<button class="btn hot" type="button" data-cv="go">CHOOSE YOUR RUNNER</button>` : `<button class="btn hot" type="button" data-cv="board">NEXT: TODAY'S LEADERBOARD</button>`) : '<button class="btn hot" type="button" id="codeDone">DONE</button>'}</div>`;
     $('#recCopy').addEventListener('click', () => copyText(info.code, $('#recMsg')));
     const d = $('#codeDone'); if (d) d.addEventListener('click', () => info.back ? info.back() : closeClub());
   },
