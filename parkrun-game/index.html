@@ -1729,11 +1729,34 @@ function drawMinimap(x0, y0){
   ctx.fillStyle = INK; ctx.fillRect(Math.round(cx + px) - 2, Math.round(cy + py) - 2, 5, 5);
   ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(cx + px) - 1, Math.round(cy + py) - 1, 3, 3);
 }
+// Height of the phone's status bar (notch) in canvas pixels, so the HUD is never hidden behind the clock.
+let SAFE_TOP = 0;
+function measureSafeTop(){
+  try {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none';
+    document.body.appendChild(probe);
+    const inset = probe.getBoundingClientRect().height; probe.remove();
+    const st = $('#stage').getBoundingClientRect();
+    SAFE_TOP = st.height > 0 ? Math.max(0, inset - st.top) * (CH / st.height) : 0;
+  } catch(e){ SAFE_TOP = 0; }
+}
+// Pace shown in min/km, refreshed once per second so it can be read (average pace once finished).
+function paceText(r){
+  if (r.finished) return fmt(r.finishVT / 5);
+  if (r.countdown > 0 || r.d < 5) return '--:--';
+  if (r.paceAt === undefined || G.time - r.paceAt >= 1){
+    if (r.paceAt !== undefined && r.d > r.paceD){ const sec = (r.vt - r.paceVT) / ((r.d - r.paceD) / 1000); r.paceShow = sec < 3600 ? fmt(sec) : '--:--'; }
+    r.paceAt = G.time; r.paceD = r.d; r.paceVT = r.vt;
+  }
+  return r.paceShow || '--:--';
+}
 function drawHUD(PX){
   const r = race;
+  ctx.save(); ctx.translate(0, Math.round(SAFE_TOP));
   const tDisp = r.finished ? r.finishVT : r.vt;
   ctx.fillStyle = 'rgba(27,20,32,.6)'; ctx.fillRect(4, 4, 98, 46);
-  txt(fmt(tDisp), 9, 9, '#f6efe1', 'left', 16);
+  txt(fmt(tDisp), 9, 9, r.finished ? '#e6f02a' : '#f6efe1', 'left', 16);
   txt('LAP ' + r.lap + '/2', 9, 29, '#e6f02a');
   txt((Math.min(r.d, TOTAL) / 1000).toFixed(2) + 'K', 9, 39, '#f6efe1');
   // energy bar
@@ -1757,7 +1780,7 @@ function drawHUD(PX){
   drawMinimap(W - 56, 6);
   const pos = 1 + r.rivals.filter(v => (r.finished ? v.T < r.finishVT : v.d > r.d)).length;
   txt('P' + pos + '/' + (r.rivals.length + 1), W - 4, 52, '#e6f02a', 'right');
-  txt(fmtPace(r.v) + '/K', W - 4, 62, '#f6efe1', 'right');
+  txt((r.finished ? 'AVG ' : 'PACE ') + paceText(r) + '/K', W - 4, 62, '#f6efe1', 'right');
   txt(r.tapTimes.length + ' TAP/S', W - 4, 72, '#b7aec2', 'right');
   // messages
   r.msgs.forEach((m, i) => {
@@ -1771,6 +1794,7 @@ function drawHUD(PX){
   } else if (r.vt < 30 && !r.finished){
     if (Math.floor(G.time * 3) % 2) txt('TAP RUN FAST!', W / 2, 108 + Math.round(OFF * 0.5), '#f6efe1', 'center', 8);
   }
+  ctx.restore();
 }
 
 /* ---------- screens ---------- */
@@ -2896,6 +2920,7 @@ function resize(){
   if (H * asp >= 240){ W = Math.min(1000, Math.round(H * asp)); CH = H; }
   else { W = 240; CH = Math.min(440, Math.round(240 / asp)); }
   OFF = CH - H;
+  measureSafeTop();
   if (cv.width !== W || cv.height !== CH){ cv.width = W; cv.height = CH; }
   ctx.imageSmoothingEnabled = false;
 }
