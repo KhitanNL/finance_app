@@ -225,6 +225,10 @@ p{margin:0;max-width:60ch}
 .playing b{color:var(--hivis);font-weight:400}
 .playing .link{font-family:var(--f-display);font-size:9px;color:var(--paper);margin-left:6px}
 .lead-dark{margin:0;font-size:21px}
+.why{background:#fffbe9;border:2px dashed var(--ink);padding:8px 10px;font-size:18px;line-height:1.15}
+.why b:first-child{font-family:var(--f-display);font-weight:400;font-size:9px;letter-spacing:.06em}
+.why ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.why li b{font-family:inherit;font-weight:700;font-size:inherit;letter-spacing:0}
 .pc-sub{margin:0;font-family:var(--f-display);font-size:6px;color:#6b6273;letter-spacing:.06em}
 .pc-linked{margin:0;font-size:18px;background:#fffbe9;border:2px dashed var(--ink);padding:6px 8px}
 .pc-game .wide{grid-column:1 / -1}
@@ -2488,7 +2492,13 @@ const CLUB_VIEWS = {
     const migrated = !!NET.me;
     $('#clubTitle').textContent = 'YOUR NICKNAME';
     CB().innerHTML = `<form id="nameForm"><p class="lead-dark">${migrated ? 'Wolfpack Run now keeps <b>you</b> apart from the runner you race as. Please check your nickname.' : '<b>Create your nickname.</b> This is you, the player.'}</p>
-      <p class="note">Then pick any runner from ${esc(NET.club.name)} to race as. Leaderboards show both, for example "Mao (as Jordi) 17:52". Your points and streaks are yours, whichever runner you pick.</p>
+      <div class="why"><b>WHY A NICKNAME?</b>
+        <ul>
+          <li><b>Your times are yours.</b> Until now a time was saved on the runner, so nobody knew who really ran it. Now the leaderboard shows both: "Mao (as Jordi) 17:52".</li>
+          <li><b>Race as anyone.</b> You can still pick any runner from ${esc(NET.club.name)}. Your PB, points and streak stay with you, whichever runner you pick.</li>
+          <li><b>Club records show who set them.</b> When ten people race as Jordi, you can see which of you holds the record.</li>
+          <li><b>No account needed.</b> No email, no password. Just a nickname, saved on this phone.</li>
+        </ul></div>
       <label>Your nickname (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required autocomplete="nickname" value="${esc(migrated ? NET.me.name : mostPickedName())}"></label>
       <p class="err" id="plErr" aria-live="polite"></p>
       <div class="actions"><button class="btn hot" type="submit">${migrated ? "THAT'S ME" : "LET'S GO"}</button></div>
