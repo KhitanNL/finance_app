@@ -3,8 +3,10 @@
 import { scryptSync, randomBytes } from 'node:crypto';
 
 const pw = process.argv[2];
-if (!pw || pw.length < 12) {
-  console.error('Give a password of at least 12 characters.');
+// At least 12 characters; ALLOW_SHORT_PASSWORD=1 accepts 8 or more (login is rate limited to 5 tries per 15 minutes).
+const min = process.env.ALLOW_SHORT_PASSWORD === '1' ? 8 : 12;
+if (!pw || pw.length < min) {
+  console.error(`Give a password of at least ${min} characters.`);
   process.exit(1);
 }
 // N=1024 keeps verification inside the Workers free plan CPU budget; login is also rate limited.
