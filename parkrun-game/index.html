@@ -2492,7 +2492,7 @@ const CLUB_VIEWS = {
       <label>Your nickname (2 to 20 characters)<input id="plName" maxlength="20" minlength="2" required autocomplete="nickname" value="${esc(migrated ? NET.me.name : mostPickedName())}"></label>
       <p class="err" id="plErr" aria-live="polite"></p>
       <div class="actions"><button class="btn hot" type="submit">${migrated ? "THAT'S ME" : "LET'S GO"}</button></div>
-      ${migrated ? '' : '<p class="note">Played on another phone before? <button class="link" type="button" data-cv="recover">Use your recovery code.</button></p>'}</form>`;
+      ${migrated ? '' : '<p class="note">Already have a nickname on another phone? <button class="link" type="button" data-cv="recover">Sign in with your recovery code.</button></p>'}</form>`;
     const inp = $('#plName'); setTimeout(() => { try { inp.focus(); inp.select(); } catch(e){} }, 50);
     $('#nameForm').addEventListener('submit', async e => {
       e.preventDefault(); $('#plErr').textContent = '';
@@ -2905,7 +2905,10 @@ legend();
 renderClubBar(); renderPlayingAs();
 if (PLAYERS_LIVE_AT > Date.now() && PLAYERS_LIVE_AT - Date.now() < 864e5 * 20) setTimeout(() => { renderPlayingAs(); }, PLAYERS_LIVE_AT - Date.now() + 1000);
 loadClub().then(() => {
-  if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); } else autoRanks();
+  if (store.get('newclub') === clubSlug){ store.set('newclub', null); openClub('created'); }
+  // no nickname on this phone yet: ask for it straight away (with a link to sign in with a recovery code)
+  else if (needsPlayerName() && G.screen === 'title' && $('#clubModal').hidden){ G.todaySeen = true; afterName = null; openClub('name'); }
+  else autoRanks();
   if (document.fonts && document.fonts.load) document.fonts.load('18px "Press Start 2P"').then(() => {
     for (const k in posterCache) delete posterCache[k];
     RUNNERS.forEach(withPoster); if (G.screen === 'select'){ renderCards(); choose(G.sel, true); }
